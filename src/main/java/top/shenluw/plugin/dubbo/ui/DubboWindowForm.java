@@ -26,6 +26,8 @@ public class DubboWindowForm extends SimpleToolWindowPanel {
     protected JTextPane responseTextPane;
     protected JComboBox threadGroupCountComboBox;
     protected JComboBox concurrentCountComboBox;
+    protected JButton refreshBtn;
+    protected MyJComboBox versionComboBox;
 
     public DubboWindowForm() {
         super(true, true);
