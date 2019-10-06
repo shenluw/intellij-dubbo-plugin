@@ -7,13 +7,11 @@ import top.shenluw.plugin.dubbo.client.DubboListener
  * @author Shenluw
  * created：2019/10/3 23:27
  */
-abstract class AbstractDubboClient : DubboClient {
+abstract class AbstractDubboClient(override var listener: DubboListener? = null) : DubboClient {
     @Volatile
     private var connecting = false
     @Volatile
     override var connected = false
-
-    override var listener: DubboListener? = null
 
     override var address: String? = null
 

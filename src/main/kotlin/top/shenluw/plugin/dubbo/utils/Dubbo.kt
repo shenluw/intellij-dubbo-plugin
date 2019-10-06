@@ -1,6 +1,5 @@
 package top.shenluw.plugin.dubbo.utils
 
-import top.shenluw.luss.common.log.KSlf4jLogger
 import top.shenluw.plugin.dubbo.client.DubboClientException
 import top.shenluw.plugin.dubbo.client.DubboMethodInfo
 import java.io.StringReader
@@ -10,7 +9,7 @@ import java.util.regex.Pattern
  * @author Shenluw
  * created：2019/10/3 20:21
  */
-object Dubbo : KSlf4jLogger {
+object Dubbo {
 
     private const val lsRegex = "\\s(?<rtype>.*)\\s(?<name>.*)\\((?<args>.*)\\)"
     /**

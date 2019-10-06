@@ -2,9 +2,9 @@ package top.shenluw.plugin.dubbo.client.impl
 
 import com.jetbrains.rd.util.concurrentMapOf
 import org.apache.dubbo.common.URL
+import org.apache.dubbo.common.URLBuilder
 import org.apache.dubbo.common.constants.CommonConstants
-import org.apache.dubbo.common.constants.CommonConstants.ANY_VALUE
-import org.apache.dubbo.common.constants.CommonConstants.VERSION_KEY
+import org.apache.dubbo.common.constants.CommonConstants.*
 import org.apache.dubbo.common.constants.RegistryConstants
 import org.apache.dubbo.common.constants.RegistryConstants.EMPTY_PROTOCOL
 import org.apache.dubbo.common.extension.ExtensionLoader
@@ -17,17 +17,22 @@ import org.apache.dubbo.config.builders.RegistryBuilder
 import org.apache.dubbo.registry.NotifyListener
 import org.apache.dubbo.registry.Registry
 import org.apache.dubbo.registry.RegistryFactory
+import org.apache.dubbo.registry.RegistryService
+import org.apache.dubbo.registry.support.AbstractRegistryFactory
 import org.apache.dubbo.rpc.RpcContext
+import org.apache.dubbo.rpc.cluster.Constants.EXPORT_KEY
+import org.apache.dubbo.rpc.cluster.Constants.REFER_KEY
 import org.apache.dubbo.rpc.service.GenericService
-import top.shenluw.luss.common.log.KSlf4jLogger
 import top.shenluw.plugin.dubbo.client.*
 import top.shenluw.plugin.dubbo.utils.Collections
+import top.shenluw.plugin.dubbo.utils.KLogger
 import java.util.Collections.unmodifiableList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 
-class DubboClientImpl : AbstractDubboClient(), KSlf4jLogger, NotifyListener {
+class DubboClientImpl(override var listener: DubboListener? = null) : AbstractDubboClient(listener), KLogger,
+    NotifyListener {
     private val DUBBO_NAME = "DubboPlugin"
 
     private val SUBSCRIBE = URL(
@@ -91,6 +96,22 @@ class DubboClientImpl : AbstractDubboClient(), KSlf4jLogger, NotifyListener {
         this.registry?.run {
             if (this.isAvailable) {
                 this.destroy()
+
+                // 通过反射删除factory中的缓存
+                // 非常无语，调用destroy不会删除缓存，导致重新建立的出现异常
+
+                val field = AbstractRegistryFactory::class.java.getDeclaredField("REGISTRIES")
+                field.isAccessible = true
+                val cache = field.get(null) as MutableMap<String, Registry>
+
+                val key = URLBuilder.from(registryURL)
+                    .setPath(RegistryService::class.java.name)
+                    .addParameter(INTERFACE_KEY, RegistryService::class.java.name)
+                    .removeParameters(EXPORT_KEY, REFER_KEY)
+                    .build()
+                    .toServiceStringWithoutResolving()
+                cache.remove(key)
+
             }
         }
         this.registry = null
@@ -230,7 +251,17 @@ class DubboClientImpl : AbstractDubboClient(), KSlf4jLogger, NotifyListener {
 
             // 更新缓存
             registryCache = tmpCache
-            this.listener?.onUrlChanged(allUrls)
+            this.listener?.onUrlChanged(address!!, allUrls)
+        }
+    }
+
+    companion object {
+        init {
+            // 插件启动ClassLoader读取不到Spi处理
+            val old = Thread.currentThread().contextClassLoader
+            Thread.currentThread().contextClassLoader = javaClass.classLoader
+            ExtensionLoader.getExtensionLoader(RegistryFactory::class.java).adaptiveExtension
+            Thread.currentThread().contextClassLoader = old
         }
     }
 

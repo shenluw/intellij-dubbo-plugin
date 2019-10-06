@@ -8,6 +8,6 @@ import com.intellij.openapi.application.ApplicationManager
  * created：2019/9/28 17:34
  */
 
-internal val Application = ApplicationManager.getApplication()
+inline val Application get() = ApplicationManager.getApplication()
 
-internal val Gson = GsonBuilder().create()
+inline val Gson get() = GsonBuilder().create()

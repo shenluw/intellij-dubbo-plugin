@@ -63,7 +63,7 @@ interface DubboListener {
 
     fun onDisconnect(address: String) {}
 
-    fun onUrlChanged(urls: List<URL>) {}
+    fun onUrlChanged(address: String, urls: List<URL>) {}
 }
 
 data class DubboRequest(

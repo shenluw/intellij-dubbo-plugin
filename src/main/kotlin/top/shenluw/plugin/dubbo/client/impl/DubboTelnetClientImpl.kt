@@ -2,10 +2,10 @@ package top.shenluw.plugin.dubbo.client.impl
 
 import org.apache.commons.net.telnet.TelnetClient
 import org.apache.dubbo.common.URL
-import top.shenluw.luss.common.log.KSlf4jLogger
 import top.shenluw.plugin.dubbo.Gson
 import top.shenluw.plugin.dubbo.client.*
 import top.shenluw.plugin.dubbo.utils.Dubbo
+import top.shenluw.plugin.dubbo.utils.KLogger
 import top.shenluw.plugin.dubbo.utils.Texts
 import java.io.PrintWriter
 import java.util.concurrent.ArrayBlockingQueue
@@ -17,7 +17,7 @@ import kotlin.concurrent.thread
  * @author Shenluw
  * created：2019/10/3 23:18
  */
-class DubboTelnetClientImpl : AbstractDubboClient(), KSlf4jLogger {
+class DubboTelnetClientImpl(override var listener: DubboListener? = null) : AbstractDubboClient(listener), KLogger {
 
     private var telnet: TelnetClient? = null
 
