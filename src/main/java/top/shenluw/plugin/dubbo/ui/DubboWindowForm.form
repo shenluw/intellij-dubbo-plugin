@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <form xmlns="http://www.intellij.com/uidesigner/form/" version="1" bind-to-class="top.shenluw.plugin.dubbo.ui.DubboWindowForm">
-  <grid id="27dc6" binding="root" layout-manager="GridLayoutManager" row-count="5" column-count="4" same-size-horizontally="false" same-size-vertically="false" hgap="-1" vgap="-1">
+  <grid id="27dc6" binding="root" layout-manager="GridLayoutManager" row-count="7" column-count="4" same-size-horizontally="false" same-size-vertically="false" hgap="-1" vgap="-1">
     <margin top="0" left="0" bottom="0" right="0"/>
     <constraints>
       <xy x="20" y="20" width="647" height="676"/>
@@ -26,9 +26,9 @@
           <model>
             <item value="redis://127.0.0.1:6379"/>
           </model>
-          <placeholder value="注册中心或Dubbo服务地址"/>
+          <placeholder value="注册中心地址"/>
           <selectedIndex value="-1"/>
-          <toolTipText value="注册中心或Dubbo服务地址"/>
+          <toolTipText value="注册中心地址"/>
         </properties>
       </component>
       <component id="5d0e" class="top.shenluw.plugin.dubbo.ui.MyJComboBox" binding="applicationComboBox">
@@ -53,7 +53,7 @@
       </component>
       <splitpane id="33120">
         <constraints>
-          <grid row="3" column="0" row-span="1" col-span="3" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
+          <grid row="5" column="0" row-span="1" col-span="3" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
         </constraints>
         <properties>
           <continuousLayout value="false"/>
@@ -98,7 +98,7 @@
       </splitpane>
       <grid id="97130" layout-manager="FlowLayout" hgap="5" vgap="5" flow-align="1">
         <constraints>
-          <grid row="4" column="0" row-span="1" col-span="3" vsize-policy="3" hsize-policy="3" anchor="6" fill="0" indent="0" use-parent-layout="false"/>
+          <grid row="6" column="0" row-span="1" col-span="3" vsize-policy="3" hsize-policy="3" anchor="6" fill="0" indent="0" use-parent-layout="false"/>
         </constraints>
         <properties/>
         <border type="none"/>
@@ -162,13 +162,13 @@
       </grid>
       <vspacer id="c4503">
         <constraints>
-          <grid row="3" column="3" row-span="1" col-span="1" vsize-policy="6" hsize-policy="1" anchor="0" fill="2" indent="0" use-parent-layout="false"/>
+          <grid row="5" column="3" row-span="1" col-span="1" vsize-policy="6" hsize-policy="1" anchor="0" fill="2" indent="0" use-parent-layout="false"/>
         </constraints>
       </vspacer>
       <grid id="9d677" layout-manager="GridLayoutManager" row-count="1" column-count="2" same-size-horizontally="false" same-size-vertically="false" hgap="-1" vgap="-1">
         <margin top="0" left="0" bottom="0" right="0"/>
         <constraints>
-          <grid row="2" column="0" row-span="1" col-span="3" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
+          <grid row="4" column="0" row-span="1" col-span="3" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
         </constraints>
         <properties/>
         <border type="none"/>
@@ -238,6 +238,7 @@
             <constraints/>
             <properties>
               <borderPainted value="false"/>
+              <enabled value="false"/>
               <icon value="actions/refresh.png"/>
               <preferredSize width="32" height="32"/>
               <text value=""/>
@@ -273,23 +274,76 @@
               <editable value="true"/>
               <placeholder value="执行方法"/>
               <toolTipText value="执行方法"/>
+              <visible value="true"/>
             </properties>
           </component>
-          <component id="3328" class="top.shenluw.plugin.dubbo.ui.MyJComboBox" binding="versionComboBox">
+          <grid id="1d96e" layout-manager="FlowLayout" hgap="5" vgap="5" flow-align="2">
             <constraints>
-              <grid row="0" column="1" row-span="1" col-span="1" vsize-policy="0" hsize-policy="2" anchor="4" fill="0" indent="0" use-parent-layout="false"/>
+              <grid row="0" column="1" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
             </constraints>
-            <properties>
-              <model>
-                <item value="1.1"/>
-                <item value="2.2"/>
-              </model>
-              <placeholder value="接口版本"/>
-              <selectedIndex value="-1"/>
-            </properties>
-          </component>
+            <properties/>
+            <border type="none"/>
+            <children>
+              <component id="9d750" class="javax.swing.JCheckBox" binding="specialCheckBox">
+                <constraints/>
+                <properties>
+                  <text value="附加参数"/>
+                  <toolTipText value="调用接口时的额外属性"/>
+                </properties>
+              </component>
+              <component id="3328" class="top.shenluw.plugin.dubbo.ui.MyJComboBox" binding="versionComboBox">
+                <constraints/>
+                <properties>
+                  <minimumSize width="90" height="30"/>
+                  <model/>
+                  <placeholder value="接口版本"/>
+                  <selectedIndex value="-1"/>
+                </properties>
+              </component>
+            </children>
+          </grid>
         </children>
       </grid>
+      <component id="f5834" class="top.shenluw.plugin.dubbo.ui.MyJComboBox" binding="serverComboBox">
+        <constraints>
+          <grid row="2" column="0" row-span="1" col-span="2" vsize-policy="3" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
+        </constraints>
+        <properties>
+          <placeholder value="服务器地址"/>
+          <visible value="false"/>
+        </properties>
+      </component>
+      <component id="e16b9" class="top.shenluw.plugin.dubbo.ui.MyJComboBox" binding="groupComboBox">
+        <constraints>
+          <grid row="2" column="2" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
+        </constraints>
+        <properties>
+          <placeholder value="服务group"/>
+          <visible value="false"/>
+        </properties>
+      </component>
+      <component id="bff9c" class="top.shenluw.plugin.dubbo.ui.MyJTextField" binding="usernameField">
+        <constraints>
+          <grid row="3" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="6" anchor="8" fill="1" indent="0" use-parent-layout="false">
+            <preferred-size width="150" height="-1"/>
+          </grid>
+        </constraints>
+        <properties>
+          <placeholder value="注册中心用户名"/>
+          <visible value="false"/>
+        </properties>
+      </component>
+      <component id="b9e66" class="top.shenluw.plugin.dubbo.ui.MyJTextField" binding="passwordField">
+        <constraints>
+          <grid row="3" column="1" row-span="1" col-span="1" vsize-policy="0" hsize-policy="6" anchor="8" fill="1" indent="0" use-parent-layout="false">
+            <preferred-size width="150" height="-1"/>
+          </grid>
+        </constraints>
+        <properties>
+          <placeholder value="注册中心密码"/>
+          <visible value="false"/>
+        </properties>
+      </component>
     </children>
   </grid>
 </form>

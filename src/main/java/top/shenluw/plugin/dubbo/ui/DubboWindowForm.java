@@ -28,6 +28,11 @@ public class DubboWindowForm extends SimpleToolWindowPanel {
     protected JComboBox concurrentCountComboBox;
     protected JButton refreshBtn;
     protected MyJComboBox versionComboBox;
+    protected JCheckBox specialCheckBox;
+    protected MyJComboBox serverComboBox;
+    protected MyJComboBox groupComboBox;
+    protected MyJTextField usernameField;
+    protected MyJTextField passwordField;
 
     public DubboWindowForm() {
         super(true, true);
