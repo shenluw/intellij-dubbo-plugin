@@ -3,13 +3,13 @@ package top.shenluw.plugin.dubbo.client.impl
 import org.apache.commons.net.telnet.TelnetClient
 import org.apache.dubbo.common.URL
 import top.shenluw.plugin.dubbo.Gson
+import top.shenluw.plugin.dubbo.MethodInfo
 import top.shenluw.plugin.dubbo.client.*
-import top.shenluw.plugin.dubbo.utils.Dubbo
+import top.shenluw.plugin.dubbo.utils.DubboUtils
 import top.shenluw.plugin.dubbo.utils.KLogger
 import top.shenluw.plugin.dubbo.utils.Texts
 import java.io.PrintWriter
 import java.util.concurrent.ArrayBlockingQueue
-import java.util.concurrent.BlockingQueue
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
@@ -25,11 +25,11 @@ class DubboTelnetClientImpl(override var listener: DubboListener? = null) : Abst
 
     private var close = false
     /* 调用阻塞队列 */
-    private var cmdQueue: BlockingQueue<String> = ArrayBlockingQueue(1)
+    private var cmdQueue = ArrayBlockingQueue<String>(1)
     /* 回调结果阻塞队列 */
-    private var cmdGetQueue: BlockingQueue<String> = ArrayBlockingQueue(1)
+    private var cmdGetQueue = ArrayBlockingQueue<String>(1)
 
-    private var cacheMethods = hashMapOf<String, List<DubboMethodInfo>>()
+    private var cacheMethods = hashMapOf<String, List<MethodInfo>>()
 
     override fun doConnect() {
         val telnet = TelnetClient()
@@ -72,7 +72,7 @@ class DubboTelnetClientImpl(override var listener: DubboListener? = null) : Abst
         return null
     }
 
-    override fun getServiceMethods(url: URL): List<DubboMethodInfo> {
+    override fun getServiceMethods(url: URL): List<MethodInfo> {
         if (!connected) {
             throw DubboClientException("telnet not connect")
         }
@@ -83,7 +83,7 @@ class DubboTelnetClientImpl(override var listener: DubboListener? = null) : Abst
         }
         val response = sendCommand("ls -l $interfaceName")
             ?: throw DubboClientException("数据获取超时")
-        methods = Dubbo.parseTelnetMethods(response)
+        methods = DubboUtils.parseTelnetMethods(response)
         cacheMethods[interfaceName] = methods
         return methods
     }
@@ -127,7 +127,7 @@ class DubboTelnetClientImpl(override var listener: DubboListener? = null) : Abst
             if (response == null) {
                 DubboRespone(null, emptyMap(), DubboClientException("telnet 调用超时"))
             } else {
-                DubboRespone(Dubbo.parseTelnetInvokeResponse(response), emptyMap())
+                DubboRespone(DubboUtils.parseTelnetInvokeResponse(response), emptyMap())
             }
         } catch (e: Exception) {
             DubboRespone(null, emptyMap(), e)
@@ -135,7 +135,7 @@ class DubboTelnetClientImpl(override var listener: DubboListener? = null) : Abst
     }
 
     private fun sendCommand(cmd: String): String? {
-        if (connected) {
+        if (!connected) {
             throw DubboClientException("telnet not connect")
         }
         try {

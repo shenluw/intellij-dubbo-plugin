@@ -11,26 +11,26 @@ import javax.swing.*;
 public class DubboWindowForm extends SimpleToolWindowPanel {
 
     protected JPanel root;
-    protected JComboBox registryComboBox;
+    protected JComboBox<String> registryComboBox;
     protected JButton connectBtn;
-    protected JComboBox applicationComboBox;
-    protected JComboBox serviceComboBox;
-    protected JComboBox methodComboBox;
+    protected JComboBox<String> applicationComboBox;
+    protected JComboBox<String> serviceComboBox;
+    protected JComboBox<String> methodComboBox;
     protected JButton execBtn;
     protected JButton concurrentExecBtn;
-    protected JComboBox paramsEditorTypeSelect;
-    protected JComboBox responseTypeSelect;
+    protected JComboBox<String> paramsEditorTypeSelect;
+    protected JComboBox<String> responseTypeSelect;
     protected JButton paramsEditorOpenBtn;
     protected JButton responseOpenBtn;
     protected JEditorPane paramsEditor;
     protected JTextPane responseTextPane;
-    protected JComboBox threadGroupCountComboBox;
-    protected JComboBox concurrentCountComboBox;
+    protected JComboBox<String> threadGroupCountComboBox;
+    protected JComboBox<String> concurrentCountComboBox;
     protected JButton refreshBtn;
-    protected MyJComboBox versionComboBox;
+    protected JComboBox<String> versionComboBox;
     protected JCheckBox specialCheckBox;
-    protected MyJComboBox serverComboBox;
-    protected MyJComboBox groupComboBox;
+    protected JComboBox<String> serverComboBox;
+    protected JComboBox<String> groupComboBox;
     protected MyJTextField usernameField;
     protected MyJTextField passwordField;
 

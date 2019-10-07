@@ -1,24 +1,27 @@
 <idea-plugin>
     <id>top.shenluw.intellij.dubbo-plugin</id>
-    <name>Plugin display name here</name>
-    <vendor email="support@yourcompany.com" url="http://www.yourcompany.com">YourCompany</vendor>
+    <name>dubbo-plugin</name>
+    <vendor email="shenluw@gmail.com" url="https://shenluw.top">Shenluw</vendor>
 
     <description><![CDATA[
-    Enter short description for your plugin here.<br>
-    <em>most HTML tags may be used</em>
+    提供Dubbo接口测试
     ]]></description>
 
-    <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html
-         on how to target different products -->
-    <!-- uncomment to enable plugin in all products
-    <depends>com.intellij.modules.lang</depends>
-    -->
-
     <extensions defaultExtensionNs="com.intellij">
-        <!-- Add your extensions here -->
+
+        <projectService serviceImplementation="top.shenluw.plugin.dubbo.DubboWindowView"/>
+        <projectService serviceImplementation="top.shenluw.plugin.dubbo.DubboStorage"/>
+
+        <toolWindow id="Dubbo"
+                    icon="/icons/dubbo.jpg"
+                    anchor="right"
+                    secondary="false"
+                    factoryClass="top.shenluw.plugin.dubbo.DubboToolWindowFactory"
+
+        >
+        </toolWindow>
     </extensions>
 
     <actions>
-        <!-- Add your actions here -->
     </actions>
 </idea-plugin>

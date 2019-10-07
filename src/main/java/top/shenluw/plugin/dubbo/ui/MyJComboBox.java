@@ -18,7 +18,7 @@ public class MyJComboBox<E> extends JComboBox<E> implements PlaceholderRenderer 
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-        if (!hasEditObj() && g instanceof Graphics2D) {
+        if (!hasEditObj() && g instanceof Graphics2D && getSelectedIndex() == -1) {
             paintPlaceholder((Graphics2D) g, getFont());
         }
     }

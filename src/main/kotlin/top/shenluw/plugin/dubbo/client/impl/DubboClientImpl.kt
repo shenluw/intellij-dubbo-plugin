@@ -23,6 +23,7 @@ import org.apache.dubbo.rpc.RpcContext
 import org.apache.dubbo.rpc.cluster.Constants.EXPORT_KEY
 import org.apache.dubbo.rpc.cluster.Constants.REFER_KEY
 import org.apache.dubbo.rpc.service.GenericService
+import top.shenluw.plugin.dubbo.MethodInfo
 import top.shenluw.plugin.dubbo.client.*
 import top.shenluw.plugin.dubbo.utils.Collections
 import top.shenluw.plugin.dubbo.utils.KLogger
@@ -59,12 +60,15 @@ class DubboClientImpl(override var listener: DubboListener? = null) : AbstractDu
 
     private var dubboTelnetClients = concurrentMapOf<String, DubboClient>()
 
-    private var methodInfoCache = concurrentMapOf<String, List<DubboMethodInfo>>()
+    private var methodInfoCache = concurrentMapOf<String, List<MethodInfo>>()
 
     /**
      * key = url.interfaceName
      */
     private var registryCache: MutableMap<String, MutableList<URL>> = hashMapOf()
+
+    /* 保证url变化通知必需在连接状态成功=true之后 */
+    private var delayNotifyUrls = arrayListOf<List<URL>>()
 
     override fun prepareConnect(address: String, username: String?, password: String?) {
         registryURL = URL.valueOf(address)
@@ -92,6 +96,16 @@ class DubboClientImpl(override var listener: DubboListener? = null) : AbstractDu
         registry?.subscribe(SUBSCRIBE, this)
     }
 
+    override fun connect(address: String, username: String?, password: String?) {
+        super.connect(address, username, password)
+        if (delayNotifyUrls.isNotEmpty()) {
+            delayNotifyUrls.forEach {
+                notify(it)
+            }
+            delayNotifyUrls.clear()
+        }
+    }
+
     override fun doDisconnect() {
         this.registry?.run {
             if (this.isAvailable) {
@@ -116,6 +130,7 @@ class DubboClientImpl(override var listener: DubboListener? = null) : AbstractDu
         }
         this.registry = null
         registryCache.clear()
+        delayNotifyUrls.clear()
     }
 
     override fun getUrls(): List<URL> {
@@ -130,7 +145,7 @@ class DubboClientImpl(override var listener: DubboListener? = null) : AbstractDu
         return null
     }
 
-    override fun getServiceMethods(url: URL): List<DubboMethodInfo> {
+    override fun getServiceMethods(url: URL): List<MethodInfo> {
         val key = url.toFullString()
         val methods = methodInfoCache[key]
         if (methods != null) {
@@ -197,6 +212,10 @@ class DubboClientImpl(override var listener: DubboListener? = null) : AbstractDu
     @Synchronized
     override fun notify(urls: List<URL>?) {
         if (urls.isNullOrEmpty()) {
+            return
+        }
+        if (!connected) {
+            delayNotifyUrls.add(urls)
             return
         }
         // 建立一个当前缓存的副本 修改操作在当前副本上执行  最后复制到缓存中去

@@ -1,6 +1,7 @@
 package top.shenluw.plugin.dubbo.client
 
 import org.apache.dubbo.common.URL
+import top.shenluw.plugin.dubbo.MethodInfo
 import java.io.Serializable
 
 /**
@@ -30,7 +31,7 @@ interface DubboClient {
     /**
      * @throws DubboClientException 接口不存在或者掉线时抛出
      */
-    fun getServiceMethods(url: URL): List<DubboMethodInfo>
+    fun getServiceMethods(url: URL): List<MethodInfo>
 
 }
 
@@ -62,7 +63,9 @@ interface DubboListener {
     fun onConnectError(address: String, exception: Exception?) {}
 
     fun onDisconnect(address: String) {}
-
+    /**
+     * @param urls 如果为空，表示当前没有能提供的服务
+     */
     fun onUrlChanged(address: String, urls: List<URL>) {}
 }
 
@@ -112,25 +115,3 @@ data class DubboRespone(
     val attachments: Map<String, String>,
     val exception: Exception? = null
 )
-
-data class DubboMethodInfo(val method: String, val argumentTypes: Array<String>, val returnType: String) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as DubboMethodInfo
-
-        if (method != other.method) return false
-        if (!argumentTypes.contentEquals(other.argumentTypes)) return false
-        if (returnType != other.returnType) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = method.hashCode()
-        result = 31 * result + argumentTypes.contentHashCode()
-        result = 31 * result + returnType.hashCode()
-        return result
-    }
-}
