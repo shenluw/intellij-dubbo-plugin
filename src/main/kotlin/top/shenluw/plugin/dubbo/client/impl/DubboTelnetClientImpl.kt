@@ -89,9 +89,9 @@ class DubboTelnetClientImpl(override var listener: DubboListener? = null) : Abst
     }
 
 
-    override fun invoke(request: DubboRequest): DubboRespone {
+    override fun invoke(request: DubboRequest): DubboResponse {
         if (!connected) {
-            return DubboRespone(null, emptyMap(), DubboClientException("client not connect"))
+            return DubboResponse(null, emptyMap(), DubboClientException("client not connect"))
         }
 
         val interfaceName = request.interfaceName
@@ -125,12 +125,12 @@ class DubboTelnetClientImpl(override var listener: DubboListener? = null) : Abst
         return try {
             val response = sendCommand(cmd.toString())
             if (response == null) {
-                DubboRespone(null, emptyMap(), DubboClientException("telnet 调用超时"))
+                DubboResponse(null, emptyMap(), DubboClientException("telnet 调用超时"))
             } else {
-                DubboRespone(DubboUtils.parseTelnetInvokeResponse(response), emptyMap())
+                DubboResponse(DubboUtils.parseTelnetInvokeResponse(response), emptyMap())
             }
         } catch (e: Exception) {
-            DubboRespone(null, emptyMap(), e)
+            DubboResponse(null, emptyMap(), e)
         }
     }
 

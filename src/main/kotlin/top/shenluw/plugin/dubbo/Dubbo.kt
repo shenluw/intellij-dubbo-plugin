@@ -20,10 +20,25 @@ data class ServiceInfo(
     val group: String?,
     /* 冗余字段 同 app address */
     val address: String,
+    /* 冗余字段 同 app name  */
+    val appName: String,
     var methods: MutableList<MethodInfo>?
 ) : Serializable
 
-data class MethodInfo(val method: String, val argumentTypes: Array<String>, val returnType: String) {
+data class MethodInfo(val method: String, val argumentTypes: Array<String>, val returnType: String) : Serializable {
+
+    val key: String by lazy {
+        if (argumentTypes.isNullOrEmpty()) {
+            method
+        } else {
+            val sb = StringBuilder()
+            sb.append(method).append('(')
+            argumentTypes.joinTo(sb)
+            sb.append(')')
+            sb.toString()
+        }
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
@@ -45,4 +60,11 @@ data class MethodInfo(val method: String, val argumentTypes: Array<String>, val 
     }
 }
 
-data class InvokeHistory(val key: String, val value: String)
+data class InvokeHistory(var key: String? = null, var value: String? = null) : Serializable
+
+data class RegistryInfo(var address: String? = null, var username: String? = null, var password: String? = null) :
+    Serializable
+
+data class ConcurrentInfo(val count: Int, val group: Int)
+
+val NoConcurrentInfo = ConcurrentInfo(1, 1)

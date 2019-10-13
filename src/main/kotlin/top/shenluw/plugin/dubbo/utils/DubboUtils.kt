@@ -1,8 +1,10 @@
 package top.shenluw.plugin.dubbo.utils
 
+import com.intellij.openapi.project.Project
 import org.apache.dubbo.common.URL
 import org.apache.dubbo.common.constants.CommonConstants
 import top.shenluw.plugin.dubbo.AppInfo
+import top.shenluw.plugin.dubbo.DubboStorage
 import top.shenluw.plugin.dubbo.MethodInfo
 import top.shenluw.plugin.dubbo.ServiceInfo
 import top.shenluw.plugin.dubbo.client.DubboClientException
@@ -37,7 +39,11 @@ object DubboUtils {
                 val returnType = matcher.group("rtype").trim()
                 val methodName = matcher.group("name").trim()
                 val args = matcher.group("args").trim()
-                result.add(MethodInfo(methodName, args.split(",").toTypedArray(), returnType))
+                if (args.isEmpty()) {
+                    result.add(MethodInfo(methodName, emptyArray(), returnType))
+                } else {
+                    result.add(MethodInfo(methodName, args.split(",").toTypedArray(), returnType))
+                }
             }
         }
         return result
@@ -126,14 +132,14 @@ object DubboUtils {
             .sorted().toList()
     }
 
-    fun getMethodNames(appName: String, interfaceName: String, apps: Collection<AppInfo>): List<String> {
+    fun getMethodKey(appName: String, interfaceName: String, apps: Collection<AppInfo>): List<String> {
         return apps.asSequence().filter { it.name == appName }
             .mapNotNull { it.services }
             .flatMap { it.asSequence() }
             .filter { it.interfaceName == interfaceName }
             .mapNotNull { it.methods }
             .flatMap { it.asSequence() }
-            .mapNotNull { it.method }
+            .mapNotNull { it.key }
             .sorted().toList()
     }
 
@@ -163,6 +169,55 @@ object DubboUtils {
             .filter { it.interfaceName == interfaceName }
             .mapNotNull { it.address }
             .sorted().toList()
+    }
+
+    fun getMethodInfo(
+        project: Project,
+        registry: String,
+        appName: String,
+        interfaceName: String,
+        methodKey: String,
+        version: String
+    ): List<MethodInfo> {
+        val apps = DubboStorage.getInstance(project).getAppInfos(registry)
+        if (apps.isNullOrEmpty()) return emptyList()
+        return apps.asSequence().filter { it.name == appName }
+            .mapNotNull { it.services }
+            .flatMap { it.asSequence() }
+            .filter { it.interfaceName == interfaceName && it.version == version }
+            .mapNotNull { it.methods }
+            .flatMap { it.asSequence() }
+            .filter { it.key == methodKey }
+            .toList()
+    }
+
+    fun getMethodName(key: String): String {
+        val index = key.indexOf('(')
+        return if (index == -1) {
+            key
+        } else {
+            key.substring(0, index)
+        }
+    }
+
+    private val threadLocal = object : ThreadLocal<ClassLoader>() {
+        override fun initialValue(): ClassLoader {
+            return Thread.currentThread().contextClassLoader
+        }
+    }
+
+    //插件启动ClassLoader读取不到Spi处理
+    fun replaceClassLoader() {
+        val loader = Thread.currentThread().contextClassLoader
+        threadLocal.set(loader)
+        Thread.currentThread().contextClassLoader = DubboUtils.javaClass.classLoader
+    }
+
+    fun restoreClassLoader() {
+        threadLocal.get()?.run {
+            Thread.currentThread().contextClassLoader = this
+        }
+        threadLocal.remove()
     }
 
 }

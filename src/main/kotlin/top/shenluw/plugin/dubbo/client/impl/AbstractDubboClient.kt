@@ -15,18 +15,23 @@ abstract class AbstractDubboClient(override var listener: DubboListener? = null)
 
     override var address: String? = null
 
+    protected var username: String? = null
+    protected var password: String? = null
+
     override fun connect(address: String, username: String?, password: String?) {
         if (connecting || connected) {
             return
         }
         connecting = true
         this.address = address
+        this.username = username
+        this.password = password
         prepareConnect(address, username, password)
 
         try {
             doConnect()
             connected = true
-            listener?.onConnect(address)
+            listener?.onConnect(address, username, password)
         } catch (e: Exception) {
             onConnectError(null, e)
         } finally {
@@ -65,7 +70,7 @@ abstract class AbstractDubboClient(override var listener: DubboListener? = null)
             connecting = true
             doConnect()
             connected = true
-            listener?.onConnect(address!!)
+            listener?.onConnect(address!!, username, password)
         } catch (e: Exception) {
             onConnectError(null, e)
         } finally {

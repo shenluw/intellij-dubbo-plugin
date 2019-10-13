@@ -13,6 +13,7 @@ const val PLUGIN_ID = "DubboPlugin"
 inline val Application get() = ApplicationManager.getApplication()
 
 inline val Gson get() = GsonBuilder().create()
+inline val PrettyGson get() = GsonBuilder().setPrettyPrinting().create()
 
 inline fun notifyMsg(
     title: String, msg: String,

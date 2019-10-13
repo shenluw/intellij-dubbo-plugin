@@ -3,6 +3,7 @@ package top.shenluw.plugin.dubbo.ui
 import com.intellij.icons.AllIcons
 import com.intellij.ui.AnimatedIcon.FS
 import com.intellij.ui.ClickListener
+import top.shenluw.plugin.dubbo.utils.UiUtils
 import java.awt.event.ItemEvent
 import java.awt.event.ItemListener
 import java.awt.event.MouseEvent
@@ -29,6 +30,15 @@ class DubboWindowPanel : DubboWindowForm() {
     private val clickListenerMap = hashMapOf<JComponent, ClickListener>()
 
     init {
+
+        ComboBoxUIAdapter<String>(registryComboBox).adapter()
+        ComboBoxUIAdapter<String>(applicationComboBox).adapter()
+        ComboBoxUIAdapter<String>(methodComboBox).adapter()
+        ComboBoxUIAdapter<String>(versionComboBox).adapter()
+        ComboBoxUIAdapter<String>(serverComboBox).adapter()
+        ComboBoxUIAdapter<String>(serviceComboBox).adapter()
+        ComboBoxUIAdapter<String>(groupComboBox).adapter()
+
         registryComboBox.addItemListener {
             if (it.stateChange == ItemEvent.SELECTED) {
                 val address = getSelectedRegistry()
@@ -46,6 +56,9 @@ class DubboWindowPanel : DubboWindowForm() {
         for (i in 0 until registryComboBox.itemCount) {
             registries.add(registryComboBox.getItemAt(i) as String)
         }
+
+        UiUtils.setEditorNumericType(threadGroupCountComboBox)
+        UiUtils.setEditorNumericType(concurrentCountComboBox)
     }
 
     /**
@@ -73,6 +86,14 @@ class DubboWindowPanel : DubboWindowForm() {
         refreshBtn.setOnClickListener(handler)
     }
 
+    fun setOnExecClickListener(handler: () -> Unit) {
+        execBtn.setOnClickListener(handler)
+    }
+
+    fun setOnConcurrentExecClickListener(handler: () -> Unit) {
+        concurrentExecBtn.setOnClickListener(handler)
+    }
+
     fun setOnRegistryChangedListener(handler: (registry: String) -> Unit) {
         registryComboBox.setSelectChangedListener(handler)
     }
@@ -94,7 +115,9 @@ class DubboWindowPanel : DubboWindowForm() {
         listener?.uninstall(this)
         listener = object : ClickListener() {
             override fun onClick(event: MouseEvent, clickCount: Int): Boolean {
-                handler.invoke()
+                if (this@setOnClickListener.isEnabled) {
+                    handler.invoke()
+                }
                 return true
             }
         }
@@ -148,6 +171,10 @@ class DubboWindowPanel : DubboWindowForm() {
         return null
     }
 
+    fun getSelectVersion(): String? {
+        return versionComboBox.selectedItem as String?
+    }
+
     fun getUsername(): String? {
         if (specialCheckBox.isSelected) {
             return usernameField.text
@@ -160,6 +187,18 @@ class DubboWindowPanel : DubboWindowForm() {
             return passwordField.text
         }
         return null
+    }
+
+    fun getConcurrentCount(): Int {
+        return (concurrentCountComboBox.selectedItem as String?)?.toInt() ?: 1
+    }
+
+    fun getConcurrentGroup(): Int {
+        return (threadGroupCountComboBox.selectedItem as String?)?.toInt() ?: 1
+    }
+
+    fun getParamsText(): String? {
+        return paramsEditor.text
     }
 
     /**
@@ -184,6 +223,25 @@ class DubboWindowPanel : DubboWindowForm() {
                 connectBtn.isEnabled = false
             }
         }
+    }
+
+    /**
+     * 用于在连接，调用时避免一些操作引起一些问题，禁用ui操作
+     */
+    fun setPanelEnableState(enable: Boolean) {
+        refreshBtn.isEnabled = enable
+        connectBtn.isEnabled = enable
+        registryComboBox.isEnabled = enable
+        applicationComboBox.isEnabled = enable
+        serviceComboBox.isEnabled = enable
+        methodComboBox.isEnabled = enable
+        specialCheckBox.isEnabled = enable
+        serverComboBox.isEnabled = enable
+        groupComboBox.isEnabled = enable
+        versionComboBox.isEnabled = enable
+
+        execBtn.isEnabled = enable
+        concurrentExecBtn.isEnabled = enable
     }
 
     fun resetToEmpty() {

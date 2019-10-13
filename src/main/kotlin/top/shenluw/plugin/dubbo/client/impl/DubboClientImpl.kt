@@ -10,6 +10,7 @@ import org.apache.dubbo.common.constants.RegistryConstants.EMPTY_PROTOCOL
 import org.apache.dubbo.common.extension.ExtensionLoader
 import org.apache.dubbo.common.utils.NetUtils
 import org.apache.dubbo.config.ApplicationConfig
+import org.apache.dubbo.config.ReferenceConfig
 import org.apache.dubbo.config.RegistryConfig
 import org.apache.dubbo.config.builders.ApplicationBuilder
 import org.apache.dubbo.config.builders.ReferenceBuilder
@@ -33,7 +34,7 @@ import java.util.concurrent.TimeUnit
 
 
 class DubboClientImpl(override var listener: DubboListener? = null) : AbstractDubboClient(listener), KLogger,
-    NotifyListener {
+    DubboConcurrentClient, NotifyListener {
     private val DUBBO_NAME = "DubboPlugin"
 
     private val SUBSCRIBE = URL(
@@ -178,10 +179,7 @@ class DubboClientImpl(override var listener: DubboListener? = null) : AbstractDu
         return client.getServiceMethods(url)
     }
 
-    override fun invoke(request: DubboRequest): DubboRespone {
-        if (!connected) {
-            return DubboRespone(null, emptyMap(), DubboClientException("client not connect"))
-        }
+    private fun createReferenceConfig(request: DubboRequest): ReferenceConfig<GenericService> {
         val builder = ReferenceBuilder<GenericService>()
             .generic(true)
             .application(applicationConfig)
@@ -189,11 +187,20 @@ class DubboClientImpl(override var listener: DubboListener? = null) : AbstractDu
             .version(request.version)
             .group(request.group)
         request.url?.run { builder.url(URL.valueOf(this).addParameter(VERSION_KEY, request.version).toFullString()) }
-        val referenceConfig = builder.build()
+        return builder.build()
+    }
 
+    override fun invoke(request: DubboRequest): DubboResponse {
+        if (!connected) {
+            return DubboResponse(null, emptyMap(), DubboClientException("client not connect"))
+        }
         var result: Any? = null
         var ex: Exception? = null
-
+        val referenceConfig: ReferenceConfig<GenericService> = if (refConfigCache == null) {
+            createReferenceConfig(request)
+        } else {
+            refConfigCache!!
+        }
         try {
             val service = referenceConfig.get()
             val params = request.params
@@ -204,9 +211,25 @@ class DubboClientImpl(override var listener: DubboListener? = null) : AbstractDu
         } catch (e: Exception) {
             ex = e
         } finally {
-            referenceConfig.destroy()
+            if (refConfigCache == null) {
+                referenceConfig.destroy()
+            }
         }
-        return DubboRespone(result, RpcContext.getContext().attachments, ex)
+        return DubboResponse(result, RpcContext.getContext().attachments, ex)
+    }
+
+
+    @Volatile
+    private var refConfigCache: ReferenceConfig<GenericService>? = null
+
+    override fun beforeInvoke(request: DubboRequest) {
+        refConfigCache = createReferenceConfig(request)
+        refConfigCache?.get()
+    }
+
+    override fun afterInvoke(request: DubboRequest) {
+        refConfigCache?.destroy()
+        refConfigCache = null
     }
 
     @Synchronized
@@ -271,16 +294,6 @@ class DubboClientImpl(override var listener: DubboListener? = null) : AbstractDu
             // 更新缓存
             registryCache = tmpCache
             this.listener?.onUrlChanged(address!!, allUrls)
-        }
-    }
-
-    companion object {
-        init {
-            // 插件启动ClassLoader读取不到Spi处理
-            val old = Thread.currentThread().contextClassLoader
-            Thread.currentThread().contextClassLoader = javaClass.classLoader
-            ExtensionLoader.getExtensionLoader(RegistryFactory::class.java).adaptiveExtension
-            Thread.currentThread().contextClassLoader = old
         }
     }
 

@@ -1,6 +1,7 @@
 package top.shenluw.plugin.dubbo.client
 
 import org.apache.dubbo.common.URL
+import top.shenluw.plugin.dubbo.DubboException
 import top.shenluw.plugin.dubbo.MethodInfo
 import java.io.Serializable
 
@@ -26,13 +27,21 @@ interface DubboClient {
 
     fun getType(): RegistryType?
 
-    fun invoke(request: DubboRequest): DubboRespone
+    fun invoke(request: DubboRequest): DubboResponse
 
     /**
      * @throws DubboClientException 接口不存在或者掉线时抛出
      */
     fun getServiceMethods(url: URL): List<MethodInfo>
 
+}
+
+/**
+ * 支持并发调用的客户端
+ */
+interface DubboConcurrentClient : DubboClient {
+    fun beforeInvoke(request: DubboRequest)
+    fun afterInvoke(request: DubboRequest)
 }
 
 enum class RegistryType(val protocol: String) {
@@ -50,7 +59,7 @@ enum class RegistryType(val protocol: String) {
     }
 }
 
-class DubboClientException : RuntimeException {
+class DubboClientException : DubboException {
     constructor() : super()
     constructor(message: String?) : super(message)
     constructor(message: String?, cause: Throwable?) : super(message, cause)
@@ -58,7 +67,7 @@ class DubboClientException : RuntimeException {
 }
 
 interface DubboListener {
-    fun onConnect(address: String) {}
+    fun onConnect(address: String, username: String?, password: String?) {}
 
     fun onConnectError(address: String, exception: Exception?) {}
 
@@ -110,7 +119,7 @@ data class DubboRequest(
 
 data class DubboParameter(val type: String, val value: Any?) : Serializable
 
-data class DubboRespone(
+data class DubboResponse(
     val data: Any?,
     val attachments: Map<String, String>,
     val exception: Exception? = null

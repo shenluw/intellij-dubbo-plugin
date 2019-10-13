@@ -5,8 +5,9 @@ import com.intellij.openapi.project.Project
 import com.intellij.util.xmlb.XmlSerializerUtil
 import com.intellij.util.xmlb.annotations.CollectionBean
 import com.intellij.util.xmlb.annotations.MapAnnotation
+import com.intellij.util.xmlb.annotations.Transient
+import com.jetbrains.rd.util.concurrentMapOf
 import org.apache.commons.codec.digest.DigestUtils
-import java.util.*
 
 
 /**
@@ -18,7 +19,7 @@ import java.util.*
 class DubboStorage : PersistentStateComponent<DubboStorage> {
 
     companion object {
-        private val MAX_HISTORY = 20
+        private const val MAX_HISTORY = 20
         fun getInstance(project: Project): DubboStorage {
             return ServiceManager.getService(project, DubboStorage::class.java)
         }
@@ -26,12 +27,13 @@ class DubboStorage : PersistentStateComponent<DubboStorage> {
     }
 
     /* 由于第一次连接dubbo时会收到全量通知，所以不需要存储，这里只作为缓存 */
+    @Transient
     private val apps = hashSetOf<AppInfo>()
-    @CollectionBean
-    val registries = hashSetOf<String>()
-
     @MapAnnotation
-    val invokeHistory = ArrayDeque<InvokeHistory>()
+    val registries = concurrentMapOf<String, RegistryInfo>()
+
+    @CollectionBean
+    val invokeHistory = mutableListOf<InvokeHistory>()
 
     var lastConnectRegistry: String? = null
 
@@ -43,8 +45,11 @@ class DubboStorage : PersistentStateComponent<DubboStorage> {
         removeRegistry(registry)
         if (infos.isNotEmpty()) {
             apps.addAll(infos)
-            registries.add(registry)
         }
+    }
+
+    fun addRegistry(info: RegistryInfo) {
+        registries[info.address!!] = info
     }
 
     fun removeRegistry(registry: String, removeRegistryRecord: Boolean = false) {
@@ -65,11 +70,9 @@ class DubboStorage : PersistentStateComponent<DubboStorage> {
      */
     fun getLastInvoke(appName: String, interfaceName: String, method: String, version: String): String? {
         val key = DigestUtils.md2Hex("$appName$interfaceName$method$version")
-        val iter = invokeHistory.descendingIterator()
-        while (iter.hasNext()) {
-            val history = iter.next()
-            if (history.key == key) {
-                return history.value
+        for (i in invokeHistory.size - 1..0) {
+            if (invokeHistory[i].key == key) {
+                return invokeHistory[i].value
             }
         }
         return null
@@ -79,7 +82,7 @@ class DubboStorage : PersistentStateComponent<DubboStorage> {
         val key = DigestUtils.md2Hex("$appName$interfaceName$method$version")
         invokeHistory.add(InvokeHistory(key, value))
         if (invokeHistory.size > MAX_HISTORY) {
-            invokeHistory.pop()
+            invokeHistory.removeAt(0)
         }
     }
 
