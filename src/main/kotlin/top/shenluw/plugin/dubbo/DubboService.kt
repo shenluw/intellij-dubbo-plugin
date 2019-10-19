@@ -5,6 +5,7 @@ import com.google.common.cache.CacheBuilder
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.Task
+import com.intellij.openapi.progress.Task.Backgroundable
 import com.intellij.openapi.project.Project
 import com.jetbrains.rd.util.Date
 import com.jetbrains.rd.util.concurrentMapOf
@@ -14,6 +15,7 @@ import top.shenluw.plugin.dubbo.client.*
 import top.shenluw.plugin.dubbo.client.impl.DubboClientImpl
 import top.shenluw.plugin.dubbo.utils.DubboUtils
 import top.shenluw.plugin.dubbo.utils.DubboUtils.getAppKey
+import java.util.*
 import java.util.concurrent.*
 
 /**
@@ -27,11 +29,17 @@ class DubboService(val project: Project) : Disposable {
     private var executeQueueThread: ExecuteQueueThread? = ExecuteQueueThread()
     private var responseListenExecutor: ExecutorService? = Executors.newSingleThreadExecutor()
 
+    private var deferCompleteTasks: LinkedList<DeferCompleteTask>? = LinkedList<DeferCompleteTask>()
+
     @Volatile
     var disposed = false
 
     private fun checkDisposed() {
         assert(!disposed) { "service already disposed" }
+    }
+
+    private fun throwDisposed() {
+        checkDisposed()
     }
 
     fun getClient(registry: String): DubboClient? {
@@ -57,7 +65,7 @@ class DubboService(val project: Project) : Disposable {
                 listener.onConnectError(registry, DubboClientException("连接失败"))
             }
         } else {
-            object : Task.Backgroundable(project, "dubbo connect") {
+            object : Backgroundable(project, "dubbo connect") {
                 override fun run(indicator: ProgressIndicator) {
                     checkDisposed()
                     indicator.text = "connect $registry"
@@ -83,7 +91,7 @@ class DubboService(val project: Project) : Disposable {
         checkDisposed()
         val client = clients!![registry]
         client?.run {
-            object : Task.Backgroundable(project, "dubbo disconnect") {
+            object : Backgroundable(project, "dubbo disconnect") {
                 override fun run(indicator: ProgressIndicator) {
                     clients!![registry]?.disconnect()
                 }
@@ -104,9 +112,32 @@ class DubboService(val project: Project) : Disposable {
             callback.onError("Dubbo 客户端未连接")
             callback.finish()
         } else {
-            object : Task.Backgroundable(project, "dubbo 详情拉取") {
+            val deferCompleteTasks = this.deferCompleteTasks
+            if (deferCompleteTasks == null) {
+                callback.onError("service already disposed")
+                callback.finish()
+                return
+            }
+            val task: DeferCompleteTask
+            if (deferCompleteTasks.isEmpty()) {
+                task = object : DeferCompleteTask(project, "dubbo 详情拉取", 5) {
+                    override fun onFinished() {
+                        super.onFinished()
+                        deferCompleteTasks.remove(this)
+                    }
+                }
+                deferCompleteTasks.add(0, task)
+                task.queue()
+            } else {
+                task = deferCompleteTasks[0]
+            }
+
+            task.push(object : Backgroundable(null, "delegate") {
                 private var values: List<AppInfo>? = null
                 override fun run(indicator: ProgressIndicator) {
+                    if (clients == null) {
+                        throwDisposed()
+                    }
                     val client = clients!![registry] ?: throw DubboException("Dubbo 客户端不存在")
                     val pullInfos = mutableMapOf<String, AppInfo>()
                     urls.forEach {
@@ -171,7 +202,7 @@ class DubboService(val project: Project) : Disposable {
                 override fun onFinished() {
                     callback.finish()
                 }
-            }.queue()
+            })
         }
     }
 
@@ -188,7 +219,7 @@ class DubboService(val project: Project) : Disposable {
             callback.finish()
         } else {
             executeQueueThread?.push(Runnable {
-                object : Task.Backgroundable(project, "dubbo execute") {
+                object : Backgroundable(project, "dubbo execute") {
                     var response: DubboResponse? = null
                     override fun run(indicator: ProgressIndicator) {
                         checkDisposed()
@@ -288,6 +319,9 @@ class DubboService(val project: Project) : Disposable {
 
         responseListenExecutor?.shutdownNow()
         responseListenExecutor = null
+
+        deferCompleteTasks?.clear()
+        deferCompleteTasks = null
     }
 
     inner class DubboListenerWrapper(private val listener: DubboListener) : DubboListener {
@@ -389,6 +423,61 @@ private class ThreadPoolCache {
                 executor = null
             }
         }
+    }
+
+}
+
+/**
+ * 当执行的任务结束时会等待一段时间在关闭的任务队列
+ */
+private open class DeferCompleteTask(project: Project?, title: String, val waitTime: Long) :
+    Backgroundable(project, title, true) {
+
+    private var tasks: BlockingQueue<Task>? = LinkedBlockingQueue<Task>()
+
+    @Volatile
+    private var running = true
+
+
+    override fun onCancel() {
+        running = false
+    }
+
+    override fun onFinished() {
+        running = false
+        tasks?.clear()
+        tasks = null
+    }
+
+
+    override fun run(indicator: ProgressIndicator) {
+        val tasks = this.tasks
+        while (running && tasks != null) {
+            var task: Task?
+            if (tasks.isEmpty()) {
+                indicator.text = "等待新任务..."
+                task = tasks.poll(waitTime, TimeUnit.SECONDS)
+            } else {
+                task = tasks.take()
+            }
+            if (task == null) {
+                running = false
+            } else {
+                try {
+                    task.run(indicator)
+                    invokeLater { task.onSuccess() }
+                } catch (e: Exception) {
+                    invokeLater { task.onThrowable(e) }
+                } finally {
+                    invokeLater { task.onFinished() }
+                }
+            }
+        }
+    }
+
+    fun push(task: Task): Boolean {
+        val tasks = this.tasks ?: return false
+        return tasks.offer(task, 1, TimeUnit.SECONDS)
     }
 
 }
