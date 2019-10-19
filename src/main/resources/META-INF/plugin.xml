@@ -11,6 +11,7 @@
 
         <projectService serviceImplementation="top.shenluw.plugin.dubbo.DubboWindowView"/>
         <projectService serviceImplementation="top.shenluw.plugin.dubbo.DubboStorage"/>
+        <projectService serviceImplementation="top.shenluw.plugin.dubbo.UISetting"/>
 
         <toolWindow id="Dubbo"
                     icon="/icons/dubbo.jpg"

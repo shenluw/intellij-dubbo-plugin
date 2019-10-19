@@ -1,8 +1,13 @@
 package top.shenluw.plugin.dubbo.ui
 
 import com.intellij.icons.AllIcons
+import com.intellij.lang.Language
+import com.intellij.lang.Language.findLanguageByID
+import com.intellij.openapi.project.Project
 import com.intellij.ui.AnimatedIcon.FS
 import com.intellij.ui.ClickListener
+import com.intellij.ui.LanguageTextField
+import top.shenluw.plugin.dubbo.UISetting
 import top.shenluw.plugin.dubbo.utils.UiUtils
 import java.awt.event.ItemEvent
 import java.awt.event.ItemListener
@@ -28,6 +33,9 @@ class DubboWindowPanel : DubboWindowForm() {
 
     private val listenerMap = hashMapOf<JComponent, EventListener>()
     private val clickListenerMap = hashMapOf<JComponent, ClickListener>()
+
+    private lateinit var project: Project
+    private lateinit var uiSetting: UISetting
 
     init {
 
@@ -59,6 +67,54 @@ class DubboWindowPanel : DubboWindowForm() {
 
         UiUtils.setEditorNumericType(threadGroupCountComboBox)
         UiUtils.setEditorNumericType(concurrentCountComboBox)
+    }
+
+    fun initUI(project: Project, setting: UISetting) {
+        this.project = project
+        this.uiSetting = setting
+        initEditorUI()
+        initEditorTypeSelectUI()
+    }
+
+    private fun initEditorUI() {
+        parameterEditor = createEditorUI(findLanguageByID(uiSetting.parameterEditorLanguage)!!, "")
+
+        contentRootPane.leftComponent = parameterEditor
+
+        responseEditor = createEditorUI(findLanguageByID(uiSetting.responseEditorLanguage)!!, "", true)
+        contentRootPane.rightComponent = responseEditor
+    }
+
+    private fun initEditorTypeSelectUI() {
+        responseTypeSelect.addItemListener {
+            if (it.stateChange == ItemEvent.SELECTED) {
+                val language = findLanguageByID(it.item.toString())
+                if (language != null) {
+                    updateResponseEditor(language, responseEditor.text)
+                    uiSetting.responseEditorLanguage = it.item.toString()
+                }
+            }
+        }
+        responseTypeSelect.selectedItem = uiSetting.responseEditorLanguage
+    }
+
+
+    fun updateParameterEditor(language: Language, text: String) {
+        contentRootPane.leftComponent = null
+        parameterEditor = createEditorUI(language, text, false)
+        contentRootPane.leftComponent = parameterEditor
+    }
+
+    fun updateResponseEditor(language: Language, text: String) {
+        contentRootPane.rightComponent = null
+        responseEditor = createEditorUI(language, text, true)
+        contentRootPane.rightComponent = responseEditor
+    }
+
+    private fun createEditorUI(language: Language, text: String, readOnly: Boolean = false): LanguageTextField {
+        val field = LanguageTextField(language, project, text, false)
+        field.document.setReadOnly(readOnly)
+        return field
     }
 
     /**
@@ -198,7 +254,11 @@ class DubboWindowPanel : DubboWindowForm() {
     }
 
     fun getParamsText(): String? {
-        return paramsEditor.text
+        return parameterEditor.text
+    }
+
+    fun getResponseText(): String? {
+        return responseEditor.text
     }
 
     /**
@@ -256,11 +316,14 @@ class DubboWindowPanel : DubboWindowForm() {
     }
 
     fun updateParamAreaText(txt: String?) {
-        paramsEditor.text = txt
+        parameterEditor.text = txt ?: ""
     }
 
     fun updateResultAreaText(txt: String?) {
-        responseTextPane.text = txt
+        val writable = responseEditor.document.isWritable
+        responseEditor.document.setReadOnly(false)
+        responseEditor.text = txt ?: ""
+        responseEditor.document.setReadOnly(!writable)
     }
 
     fun updateApplicationList(apps: List<String>) {

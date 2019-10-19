@@ -1,6 +1,7 @@
 package top.shenluw.plugin.dubbo.ui;
 
 import com.intellij.openapi.ui.SimpleToolWindowPanel;
+import com.intellij.ui.LanguageTextField;
 
 import javax.swing.*;
 
@@ -18,12 +19,12 @@ public class DubboWindowForm extends SimpleToolWindowPanel {
     protected JComboBox<String> methodComboBox;
     protected JButton execBtn;
     protected JButton concurrentExecBtn;
-    protected JComboBox<String> paramsEditorTypeSelect;
-    protected JComboBox<String> responseTypeSelect;
+    protected JComboBox paramsEditorTypeSelect;
+    protected JComboBox responseTypeSelect;
     protected JButton paramsEditorOpenBtn;
     protected JButton responseOpenBtn;
-    protected JEditorPane paramsEditor;
-    protected JTextPane responseTextPane;
+    protected LanguageTextField parameterEditor;
+    protected LanguageTextField responseEditor;
     protected JComboBox<String> threadGroupCountComboBox;
     protected JComboBox<String> concurrentCountComboBox;
     protected JButton refreshBtn;
@@ -33,6 +34,7 @@ public class DubboWindowForm extends SimpleToolWindowPanel {
     protected JComboBox<String> groupComboBox;
     protected MyJTextField usernameField;
     protected MyJTextField passwordField;
+    protected JSplitPane contentRootPane;
 
     public DubboWindowForm() {
         super(true, true);

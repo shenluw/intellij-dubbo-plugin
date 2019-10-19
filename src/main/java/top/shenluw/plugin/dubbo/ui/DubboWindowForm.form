@@ -51,16 +51,17 @@
           <toolTipText value="接口名称"/>
         </properties>
       </component>
-      <splitpane id="33120">
+      <splitpane id="33120" binding="contentRootPane">
         <constraints>
           <grid row="5" column="0" row-span="1" col-span="3" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
         </constraints>
         <properties>
           <continuousLayout value="false"/>
-          <dividerLocation value="273"/>
-          <dividerSize value="5"/>
+          <dividerLocation value="309"/>
+          <dividerSize value="2"/>
           <enabled value="true"/>
           <orientation value="1"/>
+          <resizeWeight value="0.5"/>
         </properties>
         <border type="none"/>
         <children>
@@ -70,12 +71,7 @@
             </constraints>
             <properties/>
             <border type="none"/>
-            <children>
-              <component id="1a931" class="javax.swing.JEditorPane" binding="paramsEditor">
-                <constraints/>
-                <properties/>
-              </component>
-            </children>
+            <children/>
           </scrollpane>
           <scrollpane id="29255">
             <constraints>
@@ -83,16 +79,7 @@
             </constraints>
             <properties/>
             <border type="none"/>
-            <children>
-              <component id="e6c9c" class="javax.swing.JTextPane" binding="responseTextPane">
-                <constraints/>
-                <properties>
-                  <maximumSize width="-1" height="-1"/>
-                  <minimumSize width="-1" height="-1"/>
-                  <preferredSize width="-1" height="-1"/>
-                </properties>
-              </component>
-            </children>
+            <children/>
           </scrollpane>
         </children>
       </splitpane>
@@ -177,17 +164,20 @@
             <constraints>
               <grid row="0" column="0" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
             </constraints>
-            <properties/>
+            <properties>
+              <visible value="false"/>
+            </properties>
             <border type="none"/>
             <children>
-              <component id="75658" class="top.shenluw.plugin.dubbo.ui.MyJComboBox" binding="paramsEditorTypeSelect">
+              <component id="874ed" class="javax.swing.JComboBox" binding="paramsEditorTypeSelect">
                 <constraints/>
                 <properties>
                   <model>
-                    <item value="json"/>
-                    <item value="xml"/>
-                    <item value="plain"/>
-                    <item value="html"/>
+                    <item value="TEXT"/>
+                    <item value="JSON"/>
+                    <item value="XML"/>
+                    <item value="HTML"/>
+                    <item value="YAML"/>
                   </model>
                 </properties>
               </component>
@@ -206,14 +196,15 @@
             <properties/>
             <border type="none"/>
             <children>
-              <component id="1c20c" class="top.shenluw.plugin.dubbo.ui.MyJComboBox" binding="responseTypeSelect">
+              <component id="cafa6" class="javax.swing.JComboBox" binding="responseTypeSelect">
                 <constraints/>
                 <properties>
                   <model>
-                    <item value="json"/>
-                    <item value="xml"/>
-                    <item value="plain"/>
-                    <item value="html"/>
+                    <item value="TEXT"/>
+                    <item value="JSON"/>
+                    <item value="XML"/>
+                    <item value="HTML"/>
+                    <item value="YAML"/>
                   </model>
                 </properties>
               </component>

@@ -70,6 +70,7 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
     }
 
     private fun initUI() {
+        dubboWindowPanel?.initUI(project!!, UISetting.getInstance(project!!))
         val storage = DubboStorage.getInstance(project!!)
         val registries = storage.registries
         if (registries.isNotEmpty()) {
