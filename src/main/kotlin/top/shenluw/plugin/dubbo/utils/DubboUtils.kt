@@ -3,10 +3,7 @@ package top.shenluw.plugin.dubbo.utils
 import com.intellij.openapi.project.Project
 import org.apache.dubbo.common.URL
 import org.apache.dubbo.common.constants.CommonConstants
-import top.shenluw.plugin.dubbo.AppInfo
-import top.shenluw.plugin.dubbo.DubboStorage
-import top.shenluw.plugin.dubbo.MethodInfo
-import top.shenluw.plugin.dubbo.ServiceInfo
+import top.shenluw.plugin.dubbo.*
 import top.shenluw.plugin.dubbo.client.DubboClientException
 import java.io.StringReader
 import java.util.regex.Pattern
@@ -198,6 +195,25 @@ object DubboUtils {
         } else {
             key.substring(0, index)
         }
+    }
+
+    fun getExtension(type: String?): String {
+        if (type == null) {
+            return Constants.TXT_EXTENSION
+        }
+        if (type.equals(Constants.XML_LANGUAGE, true)) {
+            return Constants.XML_EXTENSION
+        }
+        if (type.equals(Constants.JSON_LANGUAGE, true)) {
+            return Constants.JSON_EXTENSION
+        }
+        if (type.equals(Constants.HTML_LANGUAGE, true)) {
+            return Constants.HTML_EXTENSION
+        }
+        if (type.equals(Constants.YAML_LANGUAGE, true)) {
+            return Constants.YAML_EXTENSION
+        }
+        return Constants.TXT_EXTENSION
     }
 
     private val threadLocal = object : ThreadLocal<ClassLoader>() {

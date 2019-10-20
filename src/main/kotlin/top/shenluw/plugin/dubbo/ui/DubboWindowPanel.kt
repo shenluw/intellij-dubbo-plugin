@@ -78,7 +78,7 @@ class DubboWindowPanel : DubboWindowForm() {
 
     private fun initEditorUI() {
         parameterEditor = createEditorUI(findLanguageByID(uiSetting.parameterEditorLanguage)!!, "")
-
+        parameterEditor.setPlaceholder("参数使用YAML语法")
         contentRootPane.leftComponent = parameterEditor
 
         responseEditor = createEditorUI(findLanguageByID(uiSetting.responseEditorLanguage)!!, "", true)
@@ -106,9 +106,11 @@ class DubboWindowPanel : DubboWindowForm() {
     }
 
     fun updateResponseEditor(language: Language, text: String) {
+        val dividerLocation = contentRootPane.dividerLocation
         contentRootPane.rightComponent = null
         responseEditor = createEditorUI(language, text, true)
         contentRootPane.rightComponent = responseEditor
+        contentRootPane.dividerLocation = dividerLocation
     }
 
     private fun createEditorUI(language: Language, text: String, readOnly: Boolean = false): LanguageTextField {
@@ -164,6 +166,10 @@ class DubboWindowPanel : DubboWindowForm() {
 
     fun setOnMethodChangedListener(handler: (app: String) -> Unit) {
         methodComboBox.setSelectChangedListener(handler)
+    }
+
+    fun setOnOpenResponseEditorListener(handler: () -> Unit) {
+        responseOpenBtn.setOnClickListener(handler)
     }
 
     private fun JButton.setOnClickListener(handler: () -> Unit) {
@@ -259,6 +265,10 @@ class DubboWindowPanel : DubboWindowForm() {
 
     fun getResponseText(): String? {
         return responseEditor.text
+    }
+
+    fun getOpenResponseType(): String? {
+        return responseTypeSelect.selectedItem?.toString()
     }
 
     /**

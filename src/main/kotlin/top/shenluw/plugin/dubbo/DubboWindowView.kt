@@ -3,10 +3,14 @@ package top.shenluw.plugin.dubbo
 import com.intellij.notification.NotificationType.WARNING
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.ServiceManager
+import com.intellij.openapi.fileEditor.ex.FileEditorManagerEx
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
+import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.wm.ToolWindow
 import org.apache.dubbo.common.URL
+import top.shenluw.plugin.dubbo.Constants.DUBBO_TEMP_RESPONSE_PREFIX
 import top.shenluw.plugin.dubbo.client.DubboListener
 import top.shenluw.plugin.dubbo.client.DubboParameter
 import top.shenluw.plugin.dubbo.client.DubboRequest
@@ -16,6 +20,7 @@ import top.shenluw.plugin.dubbo.ui.ConnectState
 import top.shenluw.plugin.dubbo.ui.DubboWindowPanel
 import top.shenluw.plugin.dubbo.utils.DubboUtils
 import top.shenluw.plugin.dubbo.utils.KLogger
+import top.shenluw.plugin.dubbo.utils.TempFileManager
 import java.text.SimpleDateFormat
 
 /**
@@ -47,6 +52,7 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
             setOnConcurrentExecClickListener {
                 onExec(ConcurrentInfo(getConcurrentCount(), getConcurrentGroup()))
             }
+            setOnOpenResponseEditorListener { openResponseEditor() }
         }
 
         val content = contentManager.factory.createContent(panel, null, false)
@@ -66,6 +72,7 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
         dubboService = null
         dubboWindowPanel = null
         project = null
+        TempFileManager.dispose()
         disposed = true
     }
 
@@ -77,6 +84,29 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
             dubboWindowPanel?.setRegistries(registries.map { it.key })
         }
         dubboWindowPanel?.updateRegistrySelected(storage.lastConnectRegistry)
+    }
+
+    private fun openResponseEditor() {
+        val ui = dubboWindowPanel ?: return
+
+        val fileEditorManagerEx = FileEditorManagerEx.getInstance(project!!)
+
+        val tmpFile = TempFileManager.createTempFileIfNotExists(
+            DUBBO_TEMP_RESPONSE_PREFIX,
+            DubboUtils.getExtension(ui.getOpenResponseType())
+        ) ?: return
+        val resp = ui.getResponseText()
+        if (resp.isNullOrBlank()) {
+            return
+        }
+        val previewVf = LocalFileSystem.getInstance().findFileByIoFile(tmpFile)
+        previewVf?.charset = Constants.DEFAULT_CHARSET
+        if (previewVf != null) {
+            Application.runWriteAction {
+                VfsUtil.saveText(previewVf, resp)
+                fileEditorManagerEx.openFile(previewVf, false)
+            }
+        }
     }
 
     private fun onExec(concurrentInfo: ConcurrentInfo) {
