@@ -24,7 +24,8 @@ dependencies {
         exclude group: 'org.springframework'
         exclude module: 'gson'
         exclude group: 'org.yaml'
-        exclude module: 'javassist'
+        // 不能排除 ClassLoader会出现问题
+        // exclude module: 'javassist'
     }
     implementation('redis.clients:jedis:3.1.0') {
         exclude group: 'org.slf4j'
