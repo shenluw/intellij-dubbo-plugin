@@ -299,8 +299,21 @@ class DubboWindowPanel : DubboWindowForm() {
      * 用于在连接，调用时避免一些操作引起一些问题，禁用ui操作
      */
     fun setPanelEnableState(enable: Boolean) {
-        refreshBtn.isEnabled = enable
-        connectBtn.isEnabled = enable
+
+        val registry = getSelectedRegistry()
+        if (registry.isNullOrBlank()) {
+            refreshBtn.isEnabled = false
+            connectBtn.isEnabled = enable
+        } else {
+            if (enable) {
+                val state = connectState.getOrDefault(registry, ConnectState.Disconnect)
+                updateConnectState(registry, state)
+            } else {
+                refreshBtn.isEnabled = false
+                connectBtn.isEnabled = false
+            }
+        }
+
         registryComboBox.isEnabled = enable
         applicationComboBox.isEnabled = enable
         serviceComboBox.isEnabled = enable

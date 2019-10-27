@@ -9,6 +9,7 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.wm.ToolWindow
+import kotlinx.coroutines.runBlocking
 import org.apache.dubbo.common.URL
 import top.shenluw.plugin.dubbo.Constants.DUBBO_TEMP_RESPONSE_PREFIX
 import top.shenluw.plugin.dubbo.client.DubboListener
@@ -219,9 +220,9 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
         }
     }
 
-    private fun connectOrDisconnect() {
-        val ui = dubboWindowPanel ?: return
-        val dubboService = this.dubboService ?: return
+    private fun connectOrDisconnect() = runBlocking {
+        val ui = dubboWindowPanel ?: return@runBlocking
+        val dubboService = this@DubboWindowView.dubboService ?: return@runBlocking
         val registry = ui.getSelectedRegistry()
         if (!registry.isNullOrBlank()) {
             ui.setPanelEnableState(false)
@@ -263,13 +264,14 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
         updatePanel(false, false, false, true)
     }
 
-    private fun refreshRegistry() {
-        if (project == null) return
-        val ui = dubboWindowPanel ?: return
+    private fun refreshRegistry() = runBlocking {
+        if (project == null) return@runBlocking
+        val ui = dubboWindowPanel ?: return@runBlocking
 
         ui.getSelectedRegistry()?.run {
             dubboService?.disconnect(this)
             dubboService?.connect(this, ui.getUsername(), ui.getPassword(), this@DubboWindowView)
+            ui.updateConnectState(this, ConnectState.Connecting)
         }
     }
 

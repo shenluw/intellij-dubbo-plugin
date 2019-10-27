@@ -17,6 +17,9 @@ import top.shenluw.plugin.dubbo.utils.DubboUtils
 import top.shenluw.plugin.dubbo.utils.DubboUtils.getAppKey
 import java.util.*
 import java.util.concurrent.*
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlin.coroutines.suspendCoroutine
 
 /**
  * @author Shenluw
@@ -87,15 +90,24 @@ class DubboService(val project: Project) : Disposable {
         }
     }
 
-    fun disconnect(registry: String) {
+    suspend fun disconnect(registry: String): Boolean {
         checkDisposed()
-        val client = clients!![registry]
-        client?.run {
-            object : Backgroundable(project, "dubbo disconnect") {
-                override fun run(indicator: ProgressIndicator) {
-                    clients!![registry]?.disconnect()
-                }
-            }.queue()
+        return suspendCoroutine { cont ->
+            checkDisposed()
+            val client = clients!![registry]
+            client?.run {
+                object : Backgroundable(project, "dubbo disconnect") {
+                    override fun run(indicator: ProgressIndicator) {
+                        checkDisposed()
+                        clients!![registry]?.disconnect()
+                        cont.resume(true)
+                    }
+
+                    override fun onThrowable(error: Throwable) {
+                        cont.resumeWithException(error)
+                    }
+                }.queue()
+            }
         }
     }
 
