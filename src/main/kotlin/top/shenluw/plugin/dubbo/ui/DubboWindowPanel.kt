@@ -114,6 +114,10 @@ class DubboWindowPanel : DubboWindowForm() {
 
     private fun createEditorUI(language: Language, text: String, readOnly: Boolean = false): MyLanguageTextField {
         val field = MyLanguageTextField(language, project, text, false)
+        field.addSettingsProvider {
+            it.setHorizontalScrollbarVisible(true)
+            it.setVerticalScrollbarVisible(true)
+        }
         field.document.setReadOnly(readOnly)
         return field
     }

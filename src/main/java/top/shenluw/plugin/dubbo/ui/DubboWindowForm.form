@@ -64,24 +64,7 @@
           <resizeWeight value="0.5"/>
         </properties>
         <border type="none"/>
-        <children>
-          <scrollpane id="e2355">
-            <constraints>
-              <splitpane position="left"/>
-            </constraints>
-            <properties/>
-            <border type="none"/>
-            <children/>
-          </scrollpane>
-          <scrollpane id="29255">
-            <constraints>
-              <splitpane position="right"/>
-            </constraints>
-            <properties/>
-            <border type="none"/>
-            <children/>
-          </scrollpane>
-        </children>
+        <children/>
       </splitpane>
       <grid id="97130" layout-manager="FlowLayout" hgap="5" vgap="5" flow-align="1">
         <constraints>
