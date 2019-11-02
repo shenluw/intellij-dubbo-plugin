@@ -6,7 +6,6 @@ import com.intellij.lang.Language.findLanguageByID
 import com.intellij.openapi.project.Project
 import com.intellij.ui.AnimatedIcon.FS
 import com.intellij.ui.ClickListener
-import com.intellij.ui.LanguageTextField
 import top.shenluw.plugin.dubbo.UISetting
 import top.shenluw.plugin.dubbo.utils.UiUtils
 import java.awt.event.ItemEvent
@@ -113,8 +112,8 @@ class DubboWindowPanel : DubboWindowForm() {
         contentRootPane.dividerLocation = dividerLocation
     }
 
-    private fun createEditorUI(language: Language, text: String, readOnly: Boolean = false): LanguageTextField {
-        val field = LanguageTextField(language, project, text, false)
+    private fun createEditorUI(language: Language, text: String, readOnly: Boolean = false): MyLanguageTextField {
+        val field = MyLanguageTextField(language, project, text, false)
         field.document.setReadOnly(readOnly)
         return field
     }
