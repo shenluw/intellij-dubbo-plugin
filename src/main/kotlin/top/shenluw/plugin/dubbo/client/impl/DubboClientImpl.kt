@@ -3,7 +3,6 @@ package top.shenluw.plugin.dubbo.client.impl
 import com.jetbrains.rd.util.concurrentMapOf
 import org.apache.dubbo.common.URL
 import org.apache.dubbo.common.URLBuilder
-import org.apache.dubbo.common.constants.CommonConstants
 import org.apache.dubbo.common.constants.CommonConstants.*
 import org.apache.dubbo.common.constants.RegistryConstants
 import org.apache.dubbo.common.constants.RegistryConstants.EMPTY_PROTOCOL
@@ -40,16 +39,16 @@ class DubboClientImpl(override var listener: DubboListener? = null) : AbstractDu
     private val SUBSCRIBE = URL(
         DUBBO_NAME, NetUtils.getLocalHost(),
         0, "",
-        CommonConstants.INTERFACE_KEY, ANY_VALUE,
-        CommonConstants.GROUP_KEY, ANY_VALUE,
-        CommonConstants.VERSION_KEY, ANY_VALUE,
-        CommonConstants.CLASSIFIER_KEY, ANY_VALUE,
+        INTERFACE_KEY, ANY_VALUE,
+        GROUP_KEY, ANY_VALUE,
+        VERSION_KEY, ANY_VALUE,
+        CLASSIFIER_KEY, ANY_VALUE,
 //        RegistryConstants.CATEGORY_KEY, RegistryConstants.PROVIDERS_CATEGORY + ","
 //                + RegistryConstants.CONSUMERS_CATEGORY + ","
 //                + RegistryConstants.ROUTERS_CATEGORY + ","
 //                + RegistryConstants.CONFIGURATORS_CATEGORY,
         RegistryConstants.CATEGORY_KEY, RegistryConstants.PROVIDERS_CATEGORY,
-        CommonConstants.ENABLED_KEY, ANY_VALUE,
+        ENABLED_KEY, ANY_VALUE,
         org.apache.dubbo.remoting.Constants.CHECK_KEY, false.toString()
     )
 
@@ -95,6 +94,14 @@ class DubboClientImpl(override var listener: DubboListener? = null) : AbstractDu
         val registryFactory = ExtensionLoader.getExtensionLoader(RegistryFactory::class.java).adaptiveExtension
         registry = registryFactory.getRegistry(registryURL)
         registry?.subscribe(SUBSCRIBE, this)
+
+        registry?.takeUnless { it.isAvailable }?.run {
+            this.destroy()
+            cleanDubboCache()
+
+            throw DubboClientException("connect error")
+        }
+
     }
 
     override fun connect(address: String, username: String?, password: String?) {
@@ -108,30 +115,32 @@ class DubboClientImpl(override var listener: DubboListener? = null) : AbstractDu
     }
 
     override fun doDisconnect() {
-        this.registry?.run {
-            if (this.isAvailable) {
-                this.destroy()
+        this.registry?.takeIf { it.isAvailable }?.run {
+            this.destroy()
 
-                // 通过反射删除factory中的缓存
-                // 非常无语，调用destroy不会删除缓存，导致重新建立的出现异常
-
-                val field = AbstractRegistryFactory::class.java.getDeclaredField("REGISTRIES")
-                field.isAccessible = true
-                val cache = field.get(null) as MutableMap<String, Registry>
-
-                val key = URLBuilder.from(registryURL)
-                    .setPath(RegistryService::class.java.name)
-                    .addParameter(INTERFACE_KEY, RegistryService::class.java.name)
-                    .removeParameters(EXPORT_KEY, REFER_KEY)
-                    .build()
-                    .toServiceStringWithoutResolving()
-                cache.remove(key)
-
-            }
+            cleanDubboCache()
         }
         this.registry = null
         registryCache.clear()
         delayNotifyUrls.clear()
+    }
+
+    /**
+     * 通过反射删除factory中的缓存
+     * 非常无语，调用destroy不会删除缓存，导致重新建立的出现异常
+     */
+    private fun cleanDubboCache() {
+        val field = AbstractRegistryFactory::class.java.getDeclaredField("REGISTRIES")
+        field.isAccessible = true
+        val cache = field.get(null) as MutableMap<*, *>
+
+        val key = URLBuilder.from(registryURL)
+            .setPath(RegistryService::class.java.name)
+            .addParameter(INTERFACE_KEY, RegistryService::class.java.name)
+            .removeParameters(EXPORT_KEY, REFER_KEY)
+            .build()
+            .toServiceStringWithoutResolving()
+        cache.remove(key)
     }
 
     override fun getUrls(): List<URL> {
