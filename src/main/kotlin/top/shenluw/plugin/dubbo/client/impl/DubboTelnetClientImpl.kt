@@ -54,8 +54,10 @@ class DubboTelnetClientImpl(override var listener: DubboListener? = null) : Abst
     override fun doDisconnect() {
         try {
             close = true
+            if (telnet?.isAvailable == true) {
+                telnet?.disconnect()
+            }
             pw?.close()
-            telnet?.disconnect()
         } catch (e: Exception) {
             log.warn("disconnect telnet error", e)
         } finally {
