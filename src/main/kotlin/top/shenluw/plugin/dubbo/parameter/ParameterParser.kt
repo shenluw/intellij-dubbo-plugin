@@ -16,7 +16,7 @@ interface ParameterParser {
 }
 
 
-class YamlParameterParser : ParameterParser {
+object YamlParameterParser : ParameterParser {
 
     private fun checkType(type: String, value: Any): Boolean {
         return when (type) {
