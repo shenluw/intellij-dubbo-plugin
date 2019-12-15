@@ -202,4 +202,14 @@ object DubboUtils {
         threadLocal.remove()
     }
 
+
+    fun URL.getVersion(): String? {
+        var version = getParameter(CommonConstants.RELEASE_KEY)
+        if (version.isNullOrEmpty()) {
+            // 未移交apache时的版本
+            version = getParameter("dubbo")
+        }
+        return version
+    }
+
 }

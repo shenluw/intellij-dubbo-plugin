@@ -9,7 +9,7 @@ import java.util.regex.Pattern
  * @author Shenluw
  * created：2019/10/27 1:08
  */
-interface DubboTelentOutputParser {
+interface DubboTelnetOutputParser {
 
     fun support(version: String): Boolean
 
@@ -20,14 +20,14 @@ interface DubboTelentOutputParser {
 
 }
 
-object DubboTelentOutputParserComposite {
-    private val parsers = arrayOf(DubboTelentOutputParser1, DubboTelentOutputParser2)
+object DubboTelnetOutputParserComposite {
+    private val parsers = arrayOf(DubboTelnetOutputParser1, DubboTelnetOutputParser2)
 
     fun support(version: String): Boolean {
         return getSupport(version) != null
     }
 
-    fun getSupport(version: String): DubboTelentOutputParser? {
+    fun getSupport(version: String): DubboTelnetOutputParser? {
         for (parser in parsers) {
             if (parser.support(version)) {
                 return parser
@@ -56,7 +56,7 @@ private fun parseMethodWithLine(line: String, pattern: Pattern): MethodInfo? {
 /**
  * 解析 2.6.0 及以上版本的telnet输出
  */
-private object DubboTelentOutputParser1 : DubboTelentOutputParser {
+private object DubboTelnetOutputParser1 : DubboTelnetOutputParser {
 
     private val MIN_VERSION = Version.getIntVersion("2.6.0")
     private const val lsRegex = "\\s(?<rtype>.*)\\s(?<name>.*)\\((?<args>.*)\\)"
@@ -94,7 +94,7 @@ private object DubboTelentOutputParser1 : DubboTelentOutputParser {
 /**
  * 解析 2.6.0 以下版本的telnet输出
  */
-private object DubboTelentOutputParser2 : DubboTelentOutputParser {
+private object DubboTelnetOutputParser2 : DubboTelnetOutputParser {
 
     private val MAX_VERSION = Version.getIntVersion("2.6.0")
 

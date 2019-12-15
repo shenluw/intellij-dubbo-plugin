@@ -2,11 +2,11 @@ package top.shenluw.plugin.dubbo.client.impl
 
 import org.apache.commons.net.telnet.TelnetClient
 import org.apache.dubbo.common.URL
-import org.apache.dubbo.common.constants.CommonConstants.RELEASE_KEY
 import top.shenluw.plugin.dubbo.Gson
 import top.shenluw.plugin.dubbo.MethodInfo
 import top.shenluw.plugin.dubbo.client.*
 import top.shenluw.plugin.dubbo.utils.DubboUtils
+import top.shenluw.plugin.dubbo.utils.DubboUtils.getVersion
 import top.shenluw.plugin.dubbo.utils.KLogger
 import top.shenluw.plugin.dubbo.utils.Texts
 import java.io.PrintWriter
@@ -87,9 +87,9 @@ class DubboTelnetClientImpl(override var listener: DubboListener? = null) : Abst
         val response = sendCommand("ls -l $interfaceName")
             ?: throw DubboClientException("数据获取超时")
 
-        val version = url.getParameter(RELEASE_KEY)
-        if (DubboTelentOutputParserComposite.support(version)) {
-            methods = DubboTelentOutputParserComposite.getSupport(version)!!.parseMethod(response)
+        val version = url.getVersion()
+        if (version != null && DubboTelnetOutputParserComposite.support(version)) {
+            methods = DubboTelnetOutputParserComposite.getSupport(version)!!.parseMethod(response)
             cacheMethods[interfaceName] = methods
             return methods
         } else {
