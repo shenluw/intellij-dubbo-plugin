@@ -1,5 +1,6 @@
 package top.shenluw.plugin.dubbo
 
+import top.shenluw.plugin.dubbo.parameter.SimplifyParameter
 import java.io.Serializable
 
 /**
@@ -33,7 +34,9 @@ data class MethodInfo(val method: String, val argumentTypes: Array<String>, val 
         } else {
             val sb = StringBuilder()
             sb.append(method).append('(')
-            argumentTypes.joinTo(sb)
+            argumentTypes.joinTo(sb, transform = {
+                SimplifyParameter.transform(it)
+            })
             sb.append(')')
             sb.toString()
         }

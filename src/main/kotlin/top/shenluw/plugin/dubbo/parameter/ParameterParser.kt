@@ -32,7 +32,7 @@ object YamlParameterParser : ParameterParser {
             "java.util.Collection" -> value is Collection<*>
             "java.util.Map" -> value is Map<*, *>
             "java.util.Set" -> value is Set<*>
-            "java.util.Iterable" -> value is Iterable<*>
+            "java.lang.Iterable" -> value is Iterable<*>
             else -> value is Map<*, *>
         }
     }
