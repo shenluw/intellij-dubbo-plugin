@@ -20,17 +20,17 @@ dependencies {
 //    implementation 'commons-collections:commons-collections:3.2.2'
 //    implementation 'commons-net:commons-net:3.6'
 
-    implementation('org.apache.dubbo:dubbo:2.7.3') {
+    implementation('org.apache.dubbo:dubbo:2.7.+') {
         exclude group: 'org.springframework'
         exclude module: 'gson'
         exclude group: 'org.yaml'
         // 不能排除 ClassLoader会出现问题
         // exclude module: 'javassist'
     }
-    implementation('redis.clients:jedis:3.1.0') {
+    implementation('redis.clients:jedis:3.1.+') {
         exclude group: 'org.slf4j'
     }
-    implementation('org.apache.dubbo:dubbo-dependencies-zookeeper:2.7.3') {
+    implementation('org.apache.dubbo:dubbo-dependencies-zookeeper:2.7.+') {
         exclude module: 'guava'
         exclude group: 'org.slf4j'
         exclude group: 'log4j'
