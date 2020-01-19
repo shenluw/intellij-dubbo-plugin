@@ -11,9 +11,9 @@ import org.apache.dubbo.common.utils.NetUtils
 import org.apache.dubbo.config.ApplicationConfig
 import org.apache.dubbo.config.ReferenceConfig
 import org.apache.dubbo.config.RegistryConfig
-import org.apache.dubbo.config.builders.ApplicationBuilder
-import org.apache.dubbo.config.builders.ReferenceBuilder
-import org.apache.dubbo.config.builders.RegistryBuilder
+import org.apache.dubbo.config.bootstrap.builders.ApplicationBuilder
+import org.apache.dubbo.config.bootstrap.builders.ReferenceBuilder
+import org.apache.dubbo.config.bootstrap.builders.RegistryBuilder
 import org.apache.dubbo.registry.NotifyListener
 import org.apache.dubbo.registry.Registry
 import org.apache.dubbo.registry.RegistryFactory
@@ -35,6 +35,7 @@ import java.util.concurrent.TimeUnit
 class DubboClientImpl(override var listener: DubboListener? = null) : AbstractDubboClient(listener), KLogger,
     DubboConcurrentClient, NotifyListener {
     private val DUBBO_NAME = "DubboPlugin"
+    private val DEFAULT_TIMEOUT_MS = 30 * 1000
 
     private val SUBSCRIBE = URL(
         DUBBO_NAME, NetUtils.getLocalHost(),
@@ -75,6 +76,9 @@ class DubboClientImpl(override var listener: DubboListener? = null) : AbstractDu
             .setUsername(username)
             .setPassword(password)
 
+        if (!registryURL!!.hasParameter(TIMEOUT_KEY)) {
+            registryURL = registryURL?.addParameter(TIMEOUT_KEY, DEFAULT_TIMEOUT_MS)
+        }
         registryConfig = RegistryBuilder()
             .address(registryURL?.address)
             .protocol(registryURL?.protocol)

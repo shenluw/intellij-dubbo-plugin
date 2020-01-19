@@ -2,12 +2,13 @@ package top.shenluw.plugin.dubbo.client.impl
 
 import top.shenluw.plugin.dubbo.client.DubboClient
 import top.shenluw.plugin.dubbo.client.DubboListener
+import top.shenluw.plugin.dubbo.utils.KLogger
 
 /**
  * @author Shenluw
  * created：2019/10/3 23:27
  */
-abstract class AbstractDubboClient(override var listener: DubboListener? = null) : DubboClient {
+abstract class AbstractDubboClient(override var listener: DubboListener? = null) : DubboClient, KLogger {
     @Volatile
     private var connecting = false
     @Volatile
@@ -42,6 +43,7 @@ abstract class AbstractDubboClient(override var listener: DubboListener? = null)
     protected open fun prepareConnect(address: String, username: String?, password: String?) {}
 
     protected open fun onConnectError(msg: String?, e: Exception) {
+        log.warn("connect fail", e)
         listener?.onConnectError(address!!, e)
     }
 
