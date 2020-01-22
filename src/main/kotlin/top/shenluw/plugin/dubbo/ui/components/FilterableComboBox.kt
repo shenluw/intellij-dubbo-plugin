@@ -3,7 +3,9 @@ package top.shenluw.plugin.dubbo.ui.components
 import com.intellij.openapi.util.Condition
 import com.intellij.ui.speedSearch.FilteringListModel
 import com.intellij.util.castSafelyTo
-import top.shenluw.plugin.dubbo.utils.KLogger
+import top.shenluw.plugin.dubbo.ui.PlaceholderRenderer
+import java.awt.Graphics
+import java.awt.Graphics2D
 import java.awt.event.KeyAdapter
 import java.awt.event.KeyEvent
 import java.awt.event.MouseAdapter
@@ -36,7 +38,7 @@ private val IgnoreKeyCodes = arrayOf(
     KeyEvent.VK_WINDOWS
 )
 
-class FilterableComboBox<E> : JComboBox<E>(), KLogger {
+class FilterableComboBox<E> : JComboBox<E>(), PlaceholderRenderer {
     private var keyword: String? = null
 
     init {
@@ -129,6 +131,36 @@ class FilterableComboBox<E> : JComboBox<E>(), KLogger {
             it.toString().contains(keyword)
         })
         return wrapper
+    }
+
+    private var myPlaceholder: String? = null
+    private var myPlaceholderOffset: Int = 12
+    override fun getPlaceholderOffset(): Int {
+        return myPlaceholderOffset
+    }
+
+    override fun setPlaceholderOffset(offset: Int) {
+        myPlaceholderOffset = offset
+    }
+
+    override fun getPlaceholder(): String? {
+        return myPlaceholder
+    }
+
+    override fun setPlaceholder(placeholder: String?) {
+        myPlaceholder = placeholder
+    }
+
+    override fun paintComponent(g: Graphics?) {
+        super.paintComponent(g)
+        if (!hasEditObj() && g is Graphics2D && selectedIndex == -1) {
+            paintPlaceholder(g as Graphics2D?, font)
+        }
+    }
+
+    private fun hasEditObj(): Boolean {
+        val tc = editor.editorComponent as JTextComponent
+        return !tc.text.isNullOrEmpty()
     }
 
 }
