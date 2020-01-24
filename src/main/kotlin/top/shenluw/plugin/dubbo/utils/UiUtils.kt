@@ -70,4 +70,13 @@ object UiUtils {
             text = n
         }
     }
+
+    fun <E> JComboBox<E>.getItems(): MutableList<E> {
+        val itemCount = this.itemCount
+        val list = arrayListOf<E>()
+        for (i in 0 until itemCount) {
+            list.add(getItemAt(i))
+        }
+        return list
+    }
 }

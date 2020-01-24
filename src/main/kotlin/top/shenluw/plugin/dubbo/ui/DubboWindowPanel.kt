@@ -7,7 +7,9 @@ import com.intellij.openapi.project.Project
 import com.intellij.ui.AnimatedIcon.FS
 import com.intellij.ui.ClickListener
 import top.shenluw.plugin.dubbo.UISetting
+import top.shenluw.plugin.dubbo.utils.KLogger
 import top.shenluw.plugin.dubbo.utils.UiUtils
+import top.shenluw.plugin.dubbo.utils.UiUtils.getItems
 import java.awt.event.ItemEvent
 import java.awt.event.ItemListener
 import java.awt.event.MouseEvent
@@ -21,7 +23,7 @@ import javax.swing.JComponent
  * @author Shenluw
  * created：2019/9/28 17:38
  */
-class DubboWindowPanel : DubboWindowForm() {
+class DubboWindowPanel : DubboWindowForm(), KLogger {
     private val REFRESH_ICON = FS()
 
     private val EMPTY_ADDRESS = ""
@@ -37,15 +39,6 @@ class DubboWindowPanel : DubboWindowForm() {
     private lateinit var uiSetting: UISetting
 
     init {
-
-        ComboBoxUIAdapter<String>(registryComboBox).adapter()
-        ComboBoxUIAdapter<String>(applicationComboBox).adapter()
-        ComboBoxUIAdapter<String>(methodComboBox).adapter()
-        ComboBoxUIAdapter<String>(versionComboBox).adapter()
-        ComboBoxUIAdapter<String>(serverComboBox).adapter()
-        ComboBoxUIAdapter<String>(serviceComboBox).adapter()
-        ComboBoxUIAdapter<String>(groupComboBox).adapter()
-
         registryComboBox.addItemListener {
             if (it.stateChange == ItemEvent.SELECTED) {
                 val address = getSelectedRegistry()
@@ -60,9 +53,7 @@ class DubboWindowPanel : DubboWindowForm() {
         specialCheckBox.addChangeListener {
             updateSpecialOption(specialCheckBox.isSelected)
         }
-        for (i in 0 until registryComboBox.itemCount) {
-            registries.add(registryComboBox.getItemAt(i) as String)
-        }
+        registries.addAll(registryComboBox.getItems())
 
         UiUtils.setEditorNumericType(threadGroupCountComboBox)
         UiUtils.setEditorNumericType(concurrentCountComboBox)

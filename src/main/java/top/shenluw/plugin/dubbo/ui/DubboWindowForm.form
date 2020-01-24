@@ -17,7 +17,7 @@
     </properties>
     <border type="none"/>
     <children>
-      <component id="e6315" class="top.shenluw.plugin.dubbo.ui.MyJComboBox" binding="registryComboBox">
+      <component id="e6315" class="top.shenluw.plugin.dubbo.ui.components.FilterableComboBox" binding="registryComboBox">
         <constraints>
           <grid row="1" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="8" fill="0" indent="0" use-parent-layout="false">
             <minimum-size width="150" height="-1"/>
@@ -35,7 +35,7 @@
           <toolTipText value="注册中心地址"/>
         </properties>
       </component>
-      <component id="5d0e" class="top.shenluw.plugin.dubbo.ui.MyJComboBox" binding="applicationComboBox">
+      <component id="5d0e" class="top.shenluw.plugin.dubbo.ui.components.FilterableComboBox" binding="applicationComboBox">
         <constraints>
           <grid row="1" column="1" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="8" fill="0" indent="0" use-parent-layout="false">
             <minimum-size width="150" height="-1"/>
@@ -49,7 +49,7 @@
           <toolTipText value="应用名称"/>
         </properties>
       </component>
-      <component id="d5e1e" class="top.shenluw.plugin.dubbo.ui.MyJComboBox" binding="serviceComboBox">
+      <component id="d5e1e" class="top.shenluw.plugin.dubbo.ui.components.FilterableComboBox" binding="serviceComboBox">
         <constraints>
           <grid row="2" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="8" fill="0" indent="0" use-parent-layout="false">
             <minimum-size width="150" height="-1"/>
@@ -91,7 +91,7 @@
               <text value="线程组"/>
             </properties>
           </component>
-          <component id="fa613" class="top.shenluw.plugin.dubbo.ui.MyJComboBox" binding="threadGroupCountComboBox">
+          <component id="fa613" class="top.shenluw.plugin.dubbo.ui.components.FilterableComboBox" binding="threadGroupCountComboBox">
             <constraints/>
             <properties>
               <editable value="true"/>
@@ -111,7 +111,7 @@
               <text value="并发数"/>
             </properties>
           </component>
-          <component id="fb2e6" class="top.shenluw.plugin.dubbo.ui.MyJComboBox" binding="concurrentCountComboBox">
+          <component id="fb2e6" class="top.shenluw.plugin.dubbo.ui.components.FilterableComboBox" binding="concurrentCountComboBox">
             <constraints/>
             <properties>
               <editable value="true"/>
@@ -211,7 +211,7 @@
           </grid>
         </children>
       </grid>
-      <component id="f5834" class="top.shenluw.plugin.dubbo.ui.MyJComboBox" binding="serverComboBox">
+      <component id="f5834" class="top.shenluw.plugin.dubbo.ui.components.FilterableComboBox" binding="serverComboBox">
         <constraints>
           <grid row="4" column="0" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="8" fill="0" indent="0" use-parent-layout="false">
             <minimum-size width="150" height="-1"/>
@@ -264,7 +264,7 @@
               <toolTipText value="调用接口时的额外属性"/>
             </properties>
           </component>
-          <component id="3328" class="top.shenluw.plugin.dubbo.ui.MyJComboBox" binding="versionComboBox">
+          <component id="3328" class="top.shenluw.plugin.dubbo.ui.components.FilterableComboBox" binding="versionComboBox">
             <constraints/>
             <properties>
               <maximumRowCount value="8"/>
@@ -277,7 +277,7 @@
           </component>
         </children>
       </grid>
-      <component id="879fb" class="top.shenluw.plugin.dubbo.ui.MyJComboBox" binding="methodComboBox">
+      <component id="879fb" class="top.shenluw.plugin.dubbo.ui.components.FilterableComboBox" binding="methodComboBox">
         <constraints>
           <grid row="2" column="1" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="8" fill="0" indent="0" use-parent-layout="false">
             <minimum-size width="150" height="-1"/>
@@ -292,7 +292,7 @@
           <visible value="true"/>
         </properties>
       </component>
-      <component id="a59e" class="top.shenluw.plugin.dubbo.ui.MyJComboBox" binding="groupComboBox">
+      <component id="a59e" class="top.shenluw.plugin.dubbo.ui.components.FilterableComboBox" binding="groupComboBox">
         <constraints>
           <grid row="4" column="1" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="8" fill="0" indent="0" use-parent-layout="false">
             <minimum-size width="150" height="-1"/>
