@@ -1,7 +1,6 @@
 package top.shenluw.plugin.dubbo.ui.components
 
 import com.intellij.openapi.util.Condition
-import com.intellij.ui.speedSearch.FilteringListModel
 import com.intellij.util.castSafelyTo
 import top.shenluw.plugin.dubbo.ui.PlaceholderRenderer
 import java.awt.Graphics
@@ -10,9 +9,13 @@ import java.awt.event.KeyAdapter
 import java.awt.event.KeyEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
+import java.util.*
+import javax.swing.AbstractListModel
 import javax.swing.ComboBoxModel
 import javax.swing.JComboBox
 import javax.swing.MutableComboBoxModel
+import javax.swing.event.ListDataEvent
+import javax.swing.event.ListDataListener
 import javax.swing.plaf.basic.ComboPopup
 import javax.swing.text.JTextComponent
 
@@ -163,13 +166,42 @@ class FilterableComboBox<E> : JComboBox<E>(), PlaceholderRenderer {
         return !tc.text.isNullOrEmpty()
     }
 
+    override fun removeAllItems() {
+        val model = dataModel as FilteringComboBoxModel<E>
+        model.removeAllElements()
+        selectedItemReminder = null
+        if (isEditable()) {
+            editor.item = null
+        }
+    }
+
 }
 
 
-class FilteringComboBoxModel<T>(private val originalModel: MutableComboBoxModel<T>) :
-    FilteringListModel<T>(originalModel),
+class FilteringComboBoxModel<T>(private val originalModel: MutableComboBoxModel<T>) : AbstractListModel<T>(),
     MutableComboBoxModel<T> {
     private var selectedObject: Any? = null
+
+    private val myData: MutableList<T> = ArrayList()
+    private var myCondition: Condition<T>? = null
+
+    private val myListDataListener: ListDataListener = object : ListDataListener {
+        override fun contentsChanged(e: ListDataEvent) {
+            refilter()
+        }
+
+        override fun intervalAdded(e: ListDataEvent) {
+            refilter()
+        }
+
+        override fun intervalRemoved(e: ListDataEvent) {
+            refilter()
+        }
+    }
+
+    init {
+        originalModel.addListDataListener(myListDataListener)
+    }
 
     override fun setSelectedItem(anObject: Any?) {
         if (selectedObject != null && selectedObject != anObject ||
@@ -224,4 +256,53 @@ class FilteringComboBoxModel<T>(private val originalModel: MutableComboBoxModel<
             removeElementAt(index)
         }
     }
+
+    fun setFilter(condition: Condition<T>) {
+        myCondition = condition
+        refilter()
+    }
+
+    fun removeAllElements() {
+        val index1 = myData.size - 1
+        if (index1 >= 0) {
+            myData.clear()
+            fireIntervalRemoved(this, 0, index1)
+        }
+    }
+
+    fun refilter() {
+        removeAllElements()
+        var count = 0
+        for (i in 0 until originalModel.size) {
+            val elt = originalModel.getElementAt(i)
+            if (passElement(elt)) {
+                myData.add(elt)
+                count++
+            }
+        }
+        if (count > 0) {
+            fireIntervalAdded(this, 0, count - 1)
+        }
+    }
+
+    override fun getSize(): Int {
+        return myData.size
+    }
+
+    override fun getElementAt(index: Int): T {
+        return myData[index]
+    }
+
+    fun getElementIndex(element: T): Int {
+        return myData.indexOf(element)
+    }
+
+    private fun passElement(element: T): Boolean {
+        return myCondition == null || myCondition?.value(element) == true
+    }
+
+    fun contains(value: T): Boolean {
+        return myData.contains(value)
+    }
+
 }
