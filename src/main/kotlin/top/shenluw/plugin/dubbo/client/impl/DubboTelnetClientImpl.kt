@@ -147,7 +147,7 @@ class DubboTelnetClientImpl(override var listener: DubboListener? = null) : Abst
             throw DubboClientException("telnet not connect")
         }
         try {
-            log.debug("send cmd: {}", cmd)
+            log.debug("send cmd: ", cmd)
             cmdQueue.put(cmd)
             pw?.println(cmd)
             return cmdGetQueue.poll(5000, TimeUnit.SECONDS)
@@ -187,7 +187,7 @@ class DubboTelnetClientImpl(override var listener: DubboListener? = null) : Abst
                 }
             } while (len != -1 && !close)
         } catch (e: Exception) {
-            log.error("telnet read error", e)
+            log.warn("telnet read error", e)
         }
         disconnect()
     }

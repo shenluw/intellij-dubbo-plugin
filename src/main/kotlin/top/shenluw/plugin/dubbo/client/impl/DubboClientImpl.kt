@@ -84,6 +84,7 @@ class DubboClientImpl(override var listener: DubboListener? = null) : AbstractDu
             .protocol(registryURL?.protocol)
             .port(registryURL?.port)
             .register(false)
+            .subscribe(false)
             .username(username)
             .password(password)
             .build()
