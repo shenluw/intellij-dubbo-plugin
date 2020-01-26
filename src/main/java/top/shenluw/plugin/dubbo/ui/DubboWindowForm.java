@@ -18,8 +18,8 @@ public class DubboWindowForm extends SimpleToolWindowPanel {
     protected JComboBox<String> methodComboBox;
     protected JButton execBtn;
     protected JButton concurrentExecBtn;
-    protected JComboBox paramsEditorTypeSelect;
-    protected JComboBox responseTypeSelect;
+    protected JComboBox<String> paramsEditorTypeSelect;
+    protected JComboBox<String> responseTypeSelect;
     protected JButton paramsEditorOpenBtn;
     protected JButton responseOpenBtn;
     protected MyLanguageTextField parameterEditor;

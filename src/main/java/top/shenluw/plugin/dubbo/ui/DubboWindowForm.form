@@ -91,7 +91,7 @@
               <text value="线程组"/>
             </properties>
           </component>
-          <component id="fa613" class="top.shenluw.plugin.dubbo.ui.components.FilterableComboBox" binding="threadGroupCountComboBox">
+          <component id="c92f7" class="javax.swing.JComboBox" binding="threadGroupCountComboBox">
             <constraints/>
             <properties>
               <editable value="true"/>
@@ -111,7 +111,7 @@
               <text value="并发数"/>
             </properties>
           </component>
-          <component id="fb2e6" class="top.shenluw.plugin.dubbo.ui.components.FilterableComboBox" binding="concurrentCountComboBox">
+          <component id="1af46" class="javax.swing.JComboBox" binding="concurrentCountComboBox">
             <constraints/>
             <properties>
               <editable value="true"/>
