@@ -10,10 +10,7 @@ import java.awt.event.KeyEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.util.*
-import javax.swing.AbstractListModel
-import javax.swing.ComboBoxModel
-import javax.swing.JComboBox
-import javax.swing.MutableComboBoxModel
+import javax.swing.*
 import javax.swing.event.ListDataEvent
 import javax.swing.event.ListDataListener
 import javax.swing.plaf.basic.ComboPopup
@@ -246,6 +243,7 @@ class FilteringComboBoxModel<T>(private val originalModel: MutableComboBoxModel<
     }
 
     override fun insertElementAt(item: T, index: Int) {
+        println("ins $index $item")
         originalModel.insertElementAt(item, index)
         fireIntervalAdded(this, index, index)
     }
@@ -263,6 +261,28 @@ class FilteringComboBoxModel<T>(private val originalModel: MutableComboBoxModel<
     }
 
     fun removeAllElements() {
+        val index1 = size - 1
+        val size = originalModel.size
+        if (size > 0) {
+            for (i in 0 until originalModel.size) {
+                originalModel.removeElementAt(0)
+            }
+            if (originalModel is DefaultComboBoxModel<*>) {
+                (originalModel as DefaultComboBoxModel<*>).removeAllElements()
+            } else {
+                for (i in 0 until originalModel.size) {
+                    originalModel.removeElementAt(0)
+                }
+            }
+            myData.clear()
+            selectedItem = null
+            if (index1 >= 0) {
+                fireIntervalRemoved(this, 0, index1)
+            }
+        }
+    }
+
+    private fun removeAllElementsWithMy() {
         val index1 = myData.size - 1
         if (index1 >= 0) {
             myData.clear()
@@ -271,7 +291,7 @@ class FilteringComboBoxModel<T>(private val originalModel: MutableComboBoxModel<
     }
 
     fun refilter() {
-        removeAllElements()
+        removeAllElementsWithMy()
         var count = 0
         for (i in 0 until originalModel.size) {
             val elt = originalModel.getElementAt(i)
