@@ -4,19 +4,24 @@ import com.google.common.cache.Cache
 import com.google.common.cache.CacheBuilder
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.progress.ProgressIndicator
-import com.intellij.openapi.progress.Task
 import com.intellij.openapi.progress.Task.Backgroundable
 import com.intellij.openapi.project.Project
 import com.jetbrains.rd.util.Date
 import com.jetbrains.rd.util.concurrentMapOf
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.channels.produce
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.suspendCancellableCoroutine
 import org.apache.dubbo.common.URL
 import org.apache.dubbo.common.constants.CommonConstants.*
 import top.shenluw.plugin.dubbo.client.*
 import top.shenluw.plugin.dubbo.client.impl.DubboClientImpl
 import top.shenluw.plugin.dubbo.utils.DubboUtils
-import top.shenluw.plugin.dubbo.utils.DubboUtils.getAppKey
-import java.util.*
+import top.shenluw.plugin.dubbo.utils.KLogger
 import java.util.concurrent.*
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
@@ -25,24 +30,19 @@ import kotlin.coroutines.suspendCoroutine
  * @author Shenluw
  * created：2019/10/5 23:00
  */
-class DubboService(val project: Project) : Disposable {
+class DubboService(val project: Project) : Disposable, KLogger {
     /* key = registry */
-    private var clients: MutableMap<String, DubboClient>? = concurrentMapOf<String, DubboClient>()
+    private var clients: MutableMap<String, DubboClient>? = concurrentMapOf()
     private var threadPoolCache: ThreadPoolCache? = ThreadPoolCache()
-    private var executeQueueThread: ExecuteQueueThread? = ExecuteQueueThread()
     private var responseListenExecutor: ExecutorService? = Executors.newSingleThreadExecutor()
 
-    private var deferCompleteTasks: LinkedList<DeferCompleteTask>? = LinkedList<DeferCompleteTask>()
+    var clientListener: DubboListener? = null
 
     @Volatile
     var disposed = false
 
     private fun checkDisposed() {
         assert(!disposed) { "service already disposed" }
-    }
-
-    private fun throwDisposed() {
-        checkDisposed()
     }
 
     fun getClient(registry: String): DubboClient? {
@@ -56,27 +56,51 @@ class DubboService(val project: Project) : Disposable {
         return client.connected
     }
 
-    fun connect(registry: String, username: String?, password: String?, listener: DubboListener) {
+    private fun getOrThrowClient(registry: String): DubboClient {
+        val client = clients!![registry]
+        if (client == null) {
+            throw DubboClientException("Dubbo 客户端不存在")
+        } else if (!client.connected) {
+            throw DubboClientException("Dubbo 客户端未连接")
+        }
+        return client
+    }
+
+    suspend fun connect(registry: String, username: String?, password: String?): DubboClient? {
         checkDisposed()
         var client = clients!![registry]
         if (client != null) {
-            client.listener = DubboListenerWrapper(listener)
-            if (client.connected) {
-                listener.onConnect(registry, username, password)
+            return if (client.connected) {
+                log.debug("already connect ", registry)
+                client
             } else {
-                // 不允许同一个地址在连接时反复调用
-                listener.onConnectError(registry, DubboClientException("连接失败"))
+                log.debug("connecting: ", registry)
+                null
             }
-        } else {
-            object : Backgroundable(project, "dubbo connect") {
-                override fun run(indicator: ProgressIndicator) {
+        }
+        return suspendCancellableCoroutine { ctx ->
+            checkDisposed()
+            object : MyBackgroundable(project, "dubbo connect") {
+                override fun doRun(indicator: ProgressIndicator) {
                     checkDisposed()
                     indicator.text = "connect $registry"
                     try {
                         DubboUtils.replaceClassLoader()
-                        client = DubboClientImpl(DubboListenerWrapper(listener))
-                        clients!![registry] = client!!
-                        client?.connect(registry, username, password)
+                        client =
+                            DubboClientImpl(registry, username, password, DubboListenerWrapper(object : DubboListener {
+                                override fun onConnect(address: String, username: String?, password: String?) {
+                                    checkDisposed()
+                                    clients?.put(address, client!!)
+                                    ctx.resume(client)
+                                }
+
+                                override fun onConnectError(address: String, exception: Exception?) {
+                                    checkDisposed()
+                                    ctx.resumeWithException(DubboClientException("连接失败", exception))
+                                }
+                            }))
+                        clients?.put(registry, client!!)
+                        client!!.connect()
                     } finally {
                         DubboUtils.replaceClassLoader()
                     }
@@ -84,7 +108,13 @@ class DubboService(val project: Project) : Disposable {
                 }
 
                 override fun onThrowable(error: Throwable) {
-                    listener.onConnectError(registry, DubboClientException("连接失败", error))
+                    clients?.remove(registry)
+                    ctx.resumeWithException(DubboClientException("连接失败", error))
+                }
+
+                override fun onCancel() {
+                    clients?.remove(registry)
+                    ctx.cancel()
                 }
             }.queue()
         }
@@ -114,206 +144,152 @@ class DubboService(val project: Project) : Disposable {
     /**
      * 调用此方法只返回url对应的数据，具体处理交给调用方
      */
-    fun getAppInfo(registry: String, urls: List<URL>, callback: TaskCallback<List<AppInfo>>) {
+    suspend fun getServiceInfo(registry: String, urls: List<URL>): Collection<ServiceInfo> {
         checkDisposed()
-        val client = clients!![registry]
-        if (client == null) {
-            callback.onError("Dubbo 客户端不存在")
-            callback.finish()
-        } else if (!client.connected) {
-            callback.onError("Dubbo 客户端未连接")
-            callback.finish()
-        } else {
-            val deferCompleteTasks = this.deferCompleteTasks
-            if (deferCompleteTasks == null) {
-                callback.onError("service already disposed")
-                callback.finish()
-                return
-            }
-            val task: DeferCompleteTask
-            if (deferCompleteTasks.isEmpty()) {
-                task = object : DeferCompleteTask(project, "dubbo 详情拉取", 5) {
-                    override fun onFinished() {
-                        super.onFinished()
-                        deferCompleteTasks.remove(this)
-                    }
+        val client = getOrThrowClient(registry)
+
+        return suspendCancellableCoroutine { ctx ->
+            val values = arrayListOf<ServiceInfo>()
+            urls.forEach {
+                val info = getServiceInfo(client, it)
+                if (info != null) {
+                    values.add(info)
                 }
-                deferCompleteTasks.add(0, task)
-                task.queue()
-            } else {
-                task = deferCompleteTasks[0]
             }
+            ctx.resume(values)
+        }
+    }
 
-            task.push(object : Backgroundable(null, "delegate") {
-                private var values: List<AppInfo>? = null
-                override fun run(indicator: ProgressIndicator) {
-                    if (clients == null) {
-                        throwDisposed()
-                    }
-                    val client = clients!![registry] ?: throw DubboException("Dubbo 客户端不存在")
-                    val pullInfos = mutableMapOf<String, AppInfo>()
-                    urls.forEach {
-                        val methodInfos = client.getServiceMethods(it)
-                        val key = it.getAppKey()
+    private fun getServiceInfo(client: DubboClient, url: URL): ServiceInfo? {
+        val methodInfos = client.getServiceMethods(url)
 
-                        val appName = it.getParameter(APPLICATION_KEY, "")
-                        val version = it.getParameter(VERSION_KEY, "")
-                        val serviceInterface = it.serviceInterface
-                        val group = it.getParameter(GROUP_KEY, "")
-                        val appInfo = pullInfos.getOrPut(
-                            key,
-                            { AppInfo(appName, registry, "${it.protocol}://${it.address}", null) })
+        val appName = url.getParameter(APPLICATION_KEY, "")
+        val version = url.getParameter(VERSION_KEY, "")
+        val serviceInterface = url.serviceInterface
+        val group = url.getParameter(GROUP_KEY, "")
 
-                        var services = appInfo.services
-                        if (services == null) {
-                            services =
-                                arrayListOf(
-                                    ServiceInfo(
-                                        serviceInterface,
-                                        version,
-                                        group,
-                                        "${it.protocol}://${it.address}",
-                                        appName,
-                                        methodInfos.toMutableList()
-                                    )
-                                )
-                            appInfo.services = services
-                        } else {
-                            var containService = false
-                            services.forEach { info ->
-                                if (info.group == group && info.interfaceName == serviceInterface) {
-                                    info.methods?.addAll(methodInfos)
-                                    containService = true
-                                }
-                            }
-                            if (!containService) {
-                                services.add(
-                                    ServiceInfo(
-                                        serviceInterface,
-                                        version,
-                                        group,
-                                        "${it.protocol}://${it.address}",
-                                        appName,
-                                        methodInfos.toMutableList()
-                                    )
-                                )
-                            }
-                        }
-                    }
-                    values = pullInfos.values.toList()
-                }
+        return ServiceInfo(
+            client.address,
+            appName,
+            serviceInterface,
+            version,
+            group,
+            "${url.protocol}://${url.address}",
+            methodInfos.toMutableList()
+        )
+    }
 
-                override fun onSuccess() {
-                    callback.onSuccess(values)
+    suspend fun execute(registry: String, request: DubboRequest): DubboResponse {
+        checkDisposed()
+        getOrThrowClient(registry)
+
+        return suspendCancellableCoroutine { ctx ->
+            object : MyBackgroundable(project, "dubbo execute") {
+                override fun doRun(indicator: ProgressIndicator) {
+                    checkDisposed()
+                    indicator.text = "开始测试"
+                    val client = getOrThrowClient(registry)
+                    ctx.resume(client.invoke(request))
                 }
 
                 override fun onThrowable(error: Throwable) {
-                    callback.onError("信息获取失败", error)
+                    ctx.resumeWithException(error)
                 }
-
-                override fun onFinished() {
-                    callback.finish()
-                }
-            })
+            }.queue()
         }
     }
 
-    fun execute(
+    suspend fun execute(
         registry: String,
         request: DubboRequest,
-        concurrentInfo: ConcurrentInfo,
-        callback: TaskCallback<DubboResponse>
-    ) {
+        concurrentInfo: ConcurrentInfo
+    ): ReceiveChannel<DubboResponse> {
         checkDisposed()
-        val client = clients!![registry]
-        if (client == null) {
-            callback.onError("Dubbo 客户端不存在")
-            callback.finish()
-        } else {
-            executeQueueThread?.push(Runnable {
-                object : Backgroundable(project, "dubbo execute") {
-                    var response: DubboResponse? = null
-                    override fun run(indicator: ProgressIndicator) {
-                        checkDisposed()
-                        indicator.text = "开始测试"
-                        val client = clients!![registry] ?: throw DubboException("Dubbo 客户端不存在")
-                        try {
-                            DubboUtils.replaceClassLoader()
-                            if (concurrentInfo === NoConcurrentInfo) {
-                                response = client.invoke(request)
-                            } else {
-                                if (client is DubboConcurrentClient) {
-                                    runConcurrentExec(client, request, concurrentInfo, callback)
-                                } else {
-                                    throw DubboException("当前连接不允许并发测试")
+        getOrThrowClient(registry)
+
+        return suspendCancellableCoroutine { ctx ->
+            object : MyBackgroundable(project, "开始测试") {
+                private var canceled = false
+                override fun doRun(indicator: ProgressIndicator) {
+                    checkDisposed()
+                    val client = getOrThrowClient(registry)
+                    if (client !is DubboConcurrentClient) {
+                        throw DubboClientException("当前连接不允许并发测试")
+                    }
+                    client.beforeInvoke(request)
+                    val executor = threadPoolCache?.get(concurrentInfo.group)
+
+                    val tasks = arrayListOf<Callable<DubboResponse>>()
+                    for (i in 1..concurrentInfo.count) {
+                        tasks.add(Callable { client.invoke(request) })
+                    }
+                    val futures = executor!!.invokeAll(tasks)
+                    val latch = CountDownLatch(tasks.size)
+
+                    responseListenExecutor!!.submit {
+                        ctx.resume(GlobalScope.produce {
+                            while (latch.count > 0) {
+                                if (canceled) {
+                                    cancelInvokes(futures, latch, this.channel)
                                 }
+
+                                var i = 0
+                                while (i < futures.size && !canceled) {
+                                    val future = futures[i]
+                                    if (future.isDone || future.isCancelled) {
+                                        if (future.isDone) {
+                                            send(future.get())
+                                        } else if (future.isCancelled) {
+                                            send(DubboResponse(null, emptyMap(), CancelException("task is cancel")))
+                                        }
+                                        latch.countDown()
+                                        futures.removeAt(i)
+                                    } else {
+                                        i++
+                                    }
+                                }
+                                delay(10)
                             }
-                        } finally {
-                            DubboUtils.restoreClassLoader()
-                        }
+                            close()
+                        })
                     }
+                    latch.await(5, TimeUnit.MINUTES)
+                    client.afterInvoke(request)
+                }
 
-                    override fun onSuccess() {
-                        if (concurrentInfo === NoConcurrentInfo) {
-                            callback.onSuccess(response)
-                        }
-                    }
+                override fun onCancel() {
+                    canceled = true
+                }
 
-                    override fun onThrowable(error: Throwable) {
-                        callback.onError("接口调用失败", error)
-                    }
-
-                    override fun onFinished() {
-                        callback.finish()
-                    }
-                }.queue()
-            })
+                override fun onThrowable(e: Throwable) {
+                    ctx.resumeWithException(e)
+                }
+            }.queue()
         }
     }
 
-    private fun runConcurrentExec(
-        client: DubboConcurrentClient,
-        request: DubboRequest,
-        concurrentInfo: ConcurrentInfo,
-        callback: TaskCallback<DubboResponse>
+    private suspend fun cancelInvokes(
+        futures: MutableList<Future<DubboResponse>>,
+        latch: CountDownLatch,
+        channel: SendChannel<DubboResponse>
     ) {
-        client.beforeInvoke(request)
-
-        val executor = threadPoolCache?.get(concurrentInfo.group)
-        val tasks = arrayListOf<Callable<DubboResponse>>()
-        for (i in 1..concurrentInfo.count) {
-            tasks.add(Callable {
-                client.invoke(request)
-            })
+        for (i in 0 until latch.count) {
+            latch.countDown()
         }
-
-        val futures = executor?.invokeAll(tasks)
-        val latch = CountDownLatch(tasks.size)
-        responseListenExecutor?.submit {
-            while (!futures.isNullOrEmpty() && latch.count > 0) {
-                var i = 0
-                while (futures.isNotEmpty()) {
-                    val it = futures[i++]
-                    if (it.isDone || it.isCancelled) {
-                        try {
-                            val response = it.get()
-                            callback.postBackground(response)
-                            invokeLater { callback.onSuccess(response) }
-                        } catch (ex: Exception) {
-                            callback.postErrorBackground("执行失败", ex)
-                            invokeLater { callback.onError("执行失败", ex) }
-                        } finally {
-                            futures.removeAt(--i)
-                            latch.countDown()
-                        }
-                    }
+        futures.forEach {
+            when {
+                it.isDone -> {
+                    channel.send(it.get())
+                }
+                it.isCancelled -> {
+                    channel.send(DubboResponse(null, emptyMap(), CancelException("task is cancel")))
+                }
+                else -> {
+                    it.cancel(true)
                 }
             }
         }
-
-        latch.await()
-        client.afterInvoke(request)
-        invokeLater { callback.finish() }
+        futures.clear()
     }
 
     override fun dispose() {
@@ -326,70 +302,47 @@ class DubboService(val project: Project) : Disposable {
         threadPoolCache?.destroy()
         threadPoolCache = null
 
-        executeQueueThread?.close()
-        executeQueueThread = null
-
         responseListenExecutor?.shutdownNow()
         responseListenExecutor = null
-
-        deferCompleteTasks?.clear()
-        deferCompleteTasks = null
     }
 
     inner class DubboListenerWrapper(private val listener: DubboListener) : DubboListener {
         override fun onConnect(address: String, username: String?, password: String?) {
             listener.onConnect(address, username, password)
+            clientListener?.onConnect(address, username, password)
         }
 
         override fun onConnectError(address: String, exception: Exception?) {
             clients?.remove(address)
             listener.onConnectError(address, exception)
+            clientListener?.onConnectError(address, exception)
         }
 
         override fun onDisconnect(address: String) {
             clients?.remove(address)
             listener.onDisconnect(address)
+            clientListener?.onDisconnect(address)
         }
 
-        override fun onUrlChanged(address: String, urls: List<URL>) {
-            listener.onUrlChanged(address, urls)
+        override fun onUrlChanged(address: String, urls: List<URL>, state: URLState) {
+            listener.onUrlChanged(address, urls, state)
+            clientListener?.onUrlChanged(address, urls, state)
         }
     }
 }
 
-private class ExecuteQueueThread : Thread("ExecuteQueueThread") {
-    private val queue = ArrayBlockingQueue<Runnable>(10)
-    private var running = true
-    override fun run() {
-        while (running) {
-            postRunnable(queue.take())
+private abstract class MyBackgroundable(project: Project?, title: String, canBeCancelled: Boolean = true) :
+    Backgroundable(project, title, canBeCancelled) {
+    override fun run(indicator: ProgressIndicator) {
+        try {
+            DubboUtils.replaceClassLoader()
+            doRun(indicator)
+        } finally {
+            DubboUtils.restoreClassLoader()
         }
     }
 
-    /**
-     * @return true push 成功
-     */
-    fun push(task: Runnable): Boolean {
-        if (queue.isEmpty()) {
-            postRunnable(task)
-        } else {
-            return queue.add(task)
-        }
-        return true
-    }
-
-    /**
-     * 执行一个调用任务
-     */
-    fun postRunnable(task: Runnable) {
-        task.run()
-    }
-
-    fun close() {
-        running = false
-        queue.clear()
-    }
-
+    abstract fun doRun(indicator: ProgressIndicator)
 }
 
 
@@ -413,14 +366,24 @@ private class ThreadPoolCache {
         executor?.scheduleAtFixedRate({
             cache?.cleanUp()
             println("run clean ${Date()}")
-        }, 5, 5, TimeUnit.MINUTES)
+        }, 5 * 60 + 1, 5 * 60 + 1, TimeUnit.SECONDS)
     }
 
     fun get(count: Int): ExecutorService {
 
         var executor = cache?.getIfPresent(count)
         if (executor == null) {
-            executor = Executors.newFixedThreadPool(count)
+            val threadNumber = AtomicInteger(1)
+            executor = Executors.newFixedThreadPool(count, ThreadFactory {
+                val t = Thread(
+                    null, it,
+                    "dubbo-invoke-" + threadNumber.getAndIncrement(),
+                    0
+                )
+                t.isDaemon = false
+                t.priority = Thread.NORM_PRIORITY
+                t
+            })
             cache?.put(count, executor)
         }
 
@@ -436,77 +399,4 @@ private class ThreadPoolCache {
             }
         }
     }
-
-}
-
-/**
- * 当执行的任务结束时会等待一段时间在关闭的任务队列
- */
-private open class DeferCompleteTask(project: Project?, title: String, val waitTime: Long) :
-    Backgroundable(project, title, true) {
-
-    private var tasks: BlockingQueue<Task>? = LinkedBlockingQueue<Task>()
-
-    @Volatile
-    private var running = true
-
-
-    override fun onCancel() {
-        running = false
-    }
-
-    override fun onFinished() {
-        running = false
-        tasks?.clear()
-        tasks = null
-    }
-
-
-    override fun run(indicator: ProgressIndicator) {
-        val tasks = this.tasks
-        while (running && tasks != null) {
-            var task: Task?
-            if (tasks.isEmpty()) {
-                indicator.text = "等待新任务..."
-                task = tasks.poll(waitTime, TimeUnit.SECONDS)
-            } else {
-                task = tasks.take()
-            }
-            if (task == null) {
-                running = false
-            } else {
-                try {
-                    task.run(indicator)
-                    invokeLater { task.onSuccess() }
-                } catch (e: Exception) {
-                    invokeLater { task.onThrowable(e) }
-                } finally {
-                    invokeLater { task.onFinished() }
-                }
-            }
-        }
-    }
-
-    fun push(task: Task): Boolean {
-        val tasks = this.tasks ?: return false
-        return tasks.offer(task, 1, TimeUnit.SECONDS)
-    }
-
-}
-
-/**
- * 回调方法必须在ui线程
- */
-interface TaskCallback<T> {
-    fun onSuccess(any: T? = null) {}
-
-    fun onError(msg: String, e: Throwable? = null) {}
-    /**
-     * 结果回调不切换线程
-     */
-    fun postBackground(data: T? = null) {}
-
-    fun postErrorBackground(msg: String, e: Throwable? = null) {}
-
-    fun finish() {}
 }

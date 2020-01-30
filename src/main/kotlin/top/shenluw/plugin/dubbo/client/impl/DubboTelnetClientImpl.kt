@@ -18,7 +18,10 @@ import kotlin.concurrent.thread
  * @author Shenluw
  * created：2019/10/3 23:18
  */
-class DubboTelnetClientImpl(override var listener: DubboListener? = null) : AbstractDubboClient(listener), KLogger {
+class DubboTelnetClientImpl(
+    address: String,
+    listener: DubboListener? = null
+) : AbstractDubboClient(address, null, null, listener), KLogger {
 
     private var telnet: TelnetClient? = null
 

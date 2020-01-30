@@ -15,9 +15,13 @@ interface DubboClient {
 
     var listener: DubboListener?
 
-    var address: String?
+    val address: String
 
-    fun connect(address: String, username: String? = null, password: String? = null)
+    var username: String?
+
+    var password: String?
+
+    fun connect()
 
     fun disconnect()
 
@@ -66,6 +70,12 @@ class DubboClientException : DubboException {
     constructor(cause: Throwable?) : super(cause)
 }
 
+class CancelException : DubboException {
+    constructor() : super()
+    constructor(message: String?) : super(message)
+    constructor(message: String?, cause: Throwable?) : super(message, cause)
+}
+
 interface DubboListener {
     fun onConnect(address: String, username: String?, password: String?) {}
 
@@ -74,8 +84,18 @@ interface DubboListener {
     fun onDisconnect(address: String) {}
     /**
      * @param urls 如果为空，表示当前没有能提供的服务
+     * @param state url 变化状态
      */
-    fun onUrlChanged(address: String, urls: List<URL>) {}
+    fun onUrlChanged(address: String, urls: List<URL>, state: URLState) {}
+}
+
+enum class URLState {
+    /* 新加入的接口 */
+    ADD,
+    /* 接口数量或者信息发生变化 */
+    UPDATE,
+    /* 接口被移除 */
+    REMOVE
 }
 
 data class DubboRequest(

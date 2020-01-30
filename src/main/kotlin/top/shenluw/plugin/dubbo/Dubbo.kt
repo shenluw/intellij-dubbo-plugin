@@ -7,22 +7,16 @@ import java.io.Serializable
  * @author Shenluw
  * created：2019/10/6 22:01
  */
-/* 一台机器下的服务信息 */
-data class AppInfo(
-    val name: String,
-    val registry: String?,
-    val address: String,
-    var services: MutableList<ServiceInfo>?
-) : Serializable
 
 data class ServiceInfo(
+    /* 注册中心地址 */
+    val registry: String?,
+    val appName: String,
     val interfaceName: String,
     val version: String,
     val group: String?,
-    /* 冗余字段 同 app address */
+    /* 具体主机ip */
     val address: String,
-    /* 冗余字段 同 app name  */
-    val appName: String,
     var methods: MutableList<MethodInfo>?
 ) : Serializable
 

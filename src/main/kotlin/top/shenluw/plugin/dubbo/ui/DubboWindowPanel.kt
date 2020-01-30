@@ -3,6 +3,7 @@ package top.shenluw.plugin.dubbo.ui
 import com.intellij.icons.AllIcons
 import com.intellij.lang.Language
 import com.intellij.lang.Language.findLanguageByID
+import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.project.Project
 import com.intellij.ui.AnimatedIcon.FS
 import com.intellij.ui.ClickListener
@@ -17,6 +18,7 @@ import java.util.*
 import javax.swing.JButton
 import javax.swing.JComboBox
 import javax.swing.JComponent
+import kotlin.math.max
 
 
 /**
@@ -164,6 +166,10 @@ class DubboWindowPanel : DubboWindowForm(), KLogger {
 
     fun setOnOpenResponseEditorListener(handler: () -> Unit) {
         responseOpenBtn.setOnClickListener(handler)
+    }
+
+    fun setOnOpenRequestEditorListener(handler: () -> Unit) {
+        paramsEditorOpenBtn.setOnClickListener(handler)
     }
 
     private fun JButton.setOnClickListener(handler: () -> Unit) {
@@ -343,38 +349,50 @@ class DubboWindowPanel : DubboWindowForm(), KLogger {
         responseEditor.document.setReadOnly(!writable)
     }
 
-    fun updateApplicationList(apps: List<String>) {
+    fun appendResultAreaText(txt: String) {
+        val document = responseEditor.document
+        val writable = document.isWritable
+        WriteCommandAction.runWriteCommandAction(project) {
+            document.setReadOnly(false)
+            document.insertString(document.getLineEndOffset(max(0, document.lineCount - 1)), txt)
+            document.setReadOnly(!writable)
+        }
+    }
+
+    fun updateApplicationList(apps: Collection<String>) {
         updateComboBox(applicationComboBox, apps)
     }
 
-    fun updateInterfaceList(interfaces: List<String>) {
+    fun updateInterfaceList(interfaces: Collection<String>) {
         updateComboBox(serviceComboBox, interfaces)
     }
 
-    fun updateMethodList(methods: List<String>) {
+    fun updateMethodList(methods: Collection<String>) {
         updateComboBox(methodComboBox, methods)
     }
 
-    fun updateVersionList(versions: List<String>) {
+    fun updateVersionList(versions: Collection<String>) {
         updateComboBox(versionComboBox, versions)
     }
 
-    fun updateGroupList(groups: List<String>) {
+    fun updateGroupList(groups: Collection<String>) {
         updateComboBox(groupComboBox, groups)
     }
 
-    fun updateServerList(servers: List<String>) {
+    fun updateServerList(servers: Collection<String>) {
         updateComboBox(serverComboBox, servers)
     }
 
     private fun updateComboBox(comboBox: JComboBox<String>, values: Collection<String>) {
         val current = comboBox.selectedItem as String?
-        comboBox.removeAllItems()
+        if (comboBox.itemCount > 0) {
+            comboBox.removeAllItems()
+        }
         if (values.isEmpty()) return
         values.forEach {
             comboBox.addItem(it)
         }
-        if (current in values) {
+        if (current != null && current in values) {
             comboBox.selectedItem = current
         } else {
             comboBox.selectedIndex = 0

@@ -1,6 +1,9 @@
 package top.shenluw.plugin.dubbo.client.impl
 
 import com.jetbrains.rd.util.concurrentMapOf
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.suspendCancellableCoroutine
 import org.apache.dubbo.common.URL
 import org.apache.dubbo.common.URLBuilder
 import org.apache.dubbo.common.constants.CommonConstants.*
@@ -11,9 +14,9 @@ import org.apache.dubbo.common.utils.NetUtils
 import org.apache.dubbo.config.ApplicationConfig
 import org.apache.dubbo.config.ReferenceConfig
 import org.apache.dubbo.config.RegistryConfig
-import org.apache.dubbo.config.bootstrap.builders.ApplicationBuilder
-import org.apache.dubbo.config.bootstrap.builders.ReferenceBuilder
-import org.apache.dubbo.config.bootstrap.builders.RegistryBuilder
+import org.apache.dubbo.config.builders.ApplicationBuilder
+import org.apache.dubbo.config.builders.ReferenceBuilder
+import org.apache.dubbo.config.builders.RegistryBuilder
 import org.apache.dubbo.registry.NotifyListener
 import org.apache.dubbo.registry.Registry
 import org.apache.dubbo.registry.RegistryFactory
@@ -25,14 +28,18 @@ import org.apache.dubbo.rpc.cluster.Constants.REFER_KEY
 import org.apache.dubbo.rpc.service.GenericService
 import top.shenluw.plugin.dubbo.MethodInfo
 import top.shenluw.plugin.dubbo.client.*
-import top.shenluw.plugin.dubbo.utils.Collections
 import top.shenluw.plugin.dubbo.utils.KLogger
 import java.util.Collections.unmodifiableList
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 
-class DubboClientImpl(override var listener: DubboListener? = null) : AbstractDubboClient(listener), KLogger,
+class DubboClientImpl(
+    address: String,
+    username: String? = null,
+    password: String? = null,
+    listener: DubboListener? = null
+) : AbstractDubboClient(address, username, password, listener), KLogger,
     DubboConcurrentClient, NotifyListener {
     private val DUBBO_NAME = "DubboPlugin"
     private val DEFAULT_TIMEOUT_MS = 30 * 1000
@@ -64,14 +71,14 @@ class DubboClientImpl(override var listener: DubboListener? = null) : AbstractDu
     private var methodInfoCache = concurrentMapOf<String, List<MethodInfo>>()
 
     /**
-     * key = url.interfaceName
+     * key = application + interfaceName
      */
     private var registryCache: MutableMap<String, MutableList<URL>> = hashMapOf()
 
     /* 保证url变化通知必需在连接状态成功=true之后 */
     private var delayNotifyUrls = arrayListOf<List<URL>>()
 
-    override fun prepareConnect(address: String, username: String?, password: String?) {
+    override fun prepareConnect() {
         registryURL = URL.valueOf(address)
             .setUsername(username)
             .setPassword(password)
@@ -84,7 +91,6 @@ class DubboClientImpl(override var listener: DubboListener? = null) : AbstractDu
             .protocol(registryURL?.protocol)
             .port(registryURL?.port)
             .register(false)
-            .subscribe(false)
             .username(username)
             .password(password)
             .build()
@@ -109,8 +115,8 @@ class DubboClientImpl(override var listener: DubboListener? = null) : AbstractDu
 
     }
 
-    override fun connect(address: String, username: String?, password: String?) {
-        super.connect(address, username, password)
+    override fun connect() {
+        super.connect()
         if (delayNotifyUrls.isNotEmpty()) {
             delayNotifyUrls.forEach {
                 notify(it)
@@ -160,37 +166,60 @@ class DubboClientImpl(override var listener: DubboListener? = null) : AbstractDu
         return null
     }
 
+    private suspend fun getTelnetClient(telnetAddress: String): DubboClient? {
+        var client = dubboTelnetClients[telnetAddress]
+        if (client != null) {
+            return client
+        }
+        return suspendCancellableCoroutine { ctx ->
+            client = DubboTelnetClientImpl(telnetAddress, object : DubboListener {
+                override fun onConnectError(address: String, exception: Exception?) {
+                    dubboTelnetClients.remove(telnetAddress)
+                    ctx.resumeWithException(exception!!)
+                }
+
+                override fun onDisconnect(address: String) {
+                    dubboTelnetClients.remove(telnetAddress)
+                }
+
+                override fun onConnect(address: String, username: String?, password: String?) {
+                    dubboTelnetClients[address] = client!!
+                    ctx.resume(client)
+                }
+            })
+            client!!.connect()
+        }
+    }
+
     override fun getServiceMethods(url: URL): List<MethodInfo> {
         val key = url.toFullString()
+
+        if (registryCache.values.flatten().find { it.toFullString() == key } == null) {
+            throw DubboClientException("url already removed")
+        }
+
         val methods = methodInfoCache[key]
         if (methods != null) {
             return methods
         }
-
-        val telnetKey = "${url.host}:${url.port}"
-        var client = dubboTelnetClients[telnetKey]
-        if (client == null) {
-            client = DubboTelnetClientImpl()
-            client.listener = object : DubboListener {
-                override fun onConnectError(address: String, exception: Exception?) {
-                    dubboTelnetClients.remove(telnetKey)
-                }
-
-                override fun onDisconnect(address: String) {
-                    dubboTelnetClients.remove(telnetKey)
-                }
-            }
-            client.connect(telnetKey)
-            dubboTelnetClients[telnetKey] = client
-        }
-        if (!client.connected) {
-            // 如果没有连接，阻塞3秒 再次判断状态
-            CountDownLatch(1).await(3, TimeUnit.SECONDS)
+        return runBlocking {
+            val client = getTelnetClient("${url.host}:${url.port}")
+                ?: throw DubboClientException("telnet can not connect")
             if (!client.connected) {
-                throw DubboClientException("telnet can not connect")
+                var index = 0
+                // 如果没有连接，阻塞3秒 再次判断状态
+                while (index++ < 3) {
+                    delay(1000)
+                    if (client.connected) {
+                        break
+                    }
+                }
+                if (!client.connected) {
+                    throw DubboClientException("telnet can not connect")
+                }
             }
+            client.getServiceMethods(url)
         }
-        return client.getServiceMethods(url)
     }
 
     private fun createReferenceConfig(request: DubboRequest): ReferenceConfig<GenericService> {
@@ -246,8 +275,20 @@ class DubboClientImpl(override var listener: DubboListener? = null) : AbstractDu
         refConfigCache = null
     }
 
+    /**
+     * 根据application + interface 分组
+     */
+    private fun group(urls: List<URL>): Map<String, List<URL>> {
+        return urls.groupBy {
+            val app = it.getParameter(APPLICATION_KEY, "")
+            "$app-${it.serviceInterface}"
+        }
+    }
+
     @Synchronized
     override fun notify(urls: List<URL>?) {
+        // Note: 2020/1/28 dubbo 通知变化的时候会同一个接口会全量通知
+        log.debug("dubbo notify: ", urls?.size)
         if (urls.isNullOrEmpty()) {
             return
         }
@@ -255,59 +296,46 @@ class DubboClientImpl(override var listener: DubboListener? = null) : AbstractDu
             delayNotifyUrls.add(urls)
             return
         }
-        // 建立一个当前缓存的副本 修改操作在当前副本上执行  最后复制到缓存中去
-        val tmpCache: MutableMap<String, MutableList<URL>> = hashMapOf()
-        registryCache.forEach { (t, u) ->
-            tmpCache[t] = u.toMutableList()
-        }
 
-        val flags = arrayListOf<String>()
-        urls.forEach {
-            val url = it
-            if (EMPTY_PROTOCOL.equals(url.protocol, true)) {
-                // 收到empty便认为没有可以的接口，直接移除
-                if (tmpCache.isEmpty()) {
-                    return
-                }
-                val interfaceName = url.path
-                if (!interfaceName.isNullOrBlank()) {
-                    tmpCache.remove(interfaceName)
-                }
-            } else {
-                val interfaceName = url.serviceInterface
-                if (interfaceName.isNullOrBlank()) {
-                    return
-                }
-                // 清除缓存
-                if (!flags.contains(interfaceName)) {
-                    tmpCache.remove(interfaceName)
-                }
-                var list = tmpCache[interfaceName]
-                if (list == null) {
-                    list = arrayListOf()
-                    tmpCache[interfaceName] = list
-                }
-                list.add(url)
-            }
-        }
+        group(urls).forEach { (key, us) ->
+            log.debug("urls: ", us)
+            var cached = registryCache.getOrDefault(key, null)
+            val isAdd = cached == null
 
-        // 判断接口是否存在变化
-        if (!Collections.isEqualMap(registryCache, tmpCache)) {
-            // 移除无效的telnet数据
-            val allUrls = tmpCache.values.flatten()
+            us.forEach { url ->
+                if (EMPTY_PROTOCOL.equals(url.protocol, true)) {
+                    // 收到empty便认为没有可用的接口，直接移除
+                    val interfaceName = url.path
 
-            val iterator = methodInfoCache.iterator()
-            while (iterator.hasNext()) {
-                // key = url.serviceKey
-                val key = iterator.next().key
-                if (allUrls.find { it.serviceKey == key } == null) {
-                    iterator.remove()
+                    val iter = registryCache.iterator()
+
+                    while (iter.hasNext()) {
+                        val entry = iter.next()
+                        val tmp = entry.value
+                        val n = tmp.filter { it.serviceInterface != interfaceName }
+                        if (n.isEmpty()) {
+                            iter.remove()
+                            listener?.onUrlChanged(address, tmp, URLState.REMOVE)
+                        } else {
+                            entry.setValue(n.toMutableList())
+                            listener?.onUrlChanged(address, n, URLState.UPDATE)
+                        }
+                        if (key == entry.key) {
+                            cached = registryCache.getOrDefault(key, null)
+                        }
+                    }
+                } else {
+                    if (cached == null) {
+                        cached = arrayListOf()
+                        registryCache[key] = cached!!
+                    }
+                    cached?.add(url)
                 }
             }
 
-            // 更新缓存
-            registryCache = tmpCache
-            this.listener?.onUrlChanged(address!!, allUrls)
+            if (cached != null && us.isNotEmpty()) {
+                listener?.onUrlChanged(address, cached!!, if (isAdd) URLState.ADD else URLState.UPDATE)
+            }
         }
     }
 

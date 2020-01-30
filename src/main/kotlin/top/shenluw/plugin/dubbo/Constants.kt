@@ -23,4 +23,6 @@ object Constants {
 
     val DEFAULT_CHARSET = Charsets.UTF_8
 
+    const val DATE_FORMAT_PATTERN = "yyyy-MM-dd HH:mm:ss sss"
+
 }

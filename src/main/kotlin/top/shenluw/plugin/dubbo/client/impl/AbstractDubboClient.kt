@@ -8,26 +8,25 @@ import top.shenluw.plugin.dubbo.utils.KLogger
  * @author Shenluw
  * created：2019/10/3 23:27
  */
-abstract class AbstractDubboClient(override var listener: DubboListener? = null) : DubboClient, KLogger {
+abstract class AbstractDubboClient(
+    override val address: String,
+    override var username: String? = null,
+    override var password: String? = null,
+    override var listener: DubboListener? = null
+) :
+    DubboClient,
+    KLogger {
     @Volatile
     private var connecting = false
     @Volatile
     override var connected = false
 
-    override var address: String? = null
-
-    protected var username: String? = null
-    protected var password: String? = null
-
-    override fun connect(address: String, username: String?, password: String?) {
+    override fun connect() {
         if (connecting || connected) {
             return
         }
         connecting = true
-        this.address = address
-        this.username = username
-        this.password = password
-        prepareConnect(address, username, password)
+        prepareConnect()
 
         try {
             doConnect()
@@ -40,7 +39,7 @@ abstract class AbstractDubboClient(override var listener: DubboListener? = null)
         }
     }
 
-    protected open fun prepareConnect(address: String, username: String?, password: String?) {}
+    protected open fun prepareConnect() {}
 
     protected open fun onConnectError(msg: String?, e: Exception) {
         log.warn("connect fail", e)
@@ -56,7 +55,7 @@ abstract class AbstractDubboClient(override var listener: DubboListener? = null)
         doDisconnect()
         this.connecting = false
         this.connected = false
-        listener?.onDisconnect(address!!)
+        listener?.onDisconnect(address)
     }
 
     override fun refresh() {
@@ -72,7 +71,7 @@ abstract class AbstractDubboClient(override var listener: DubboListener? = null)
             connecting = true
             doConnect()
             connected = true
-            listener?.onConnect(address!!, username, password)
+            listener?.onConnect(address, username, password)
         } catch (e: Exception) {
             onConnectError(null, e)
         } finally {

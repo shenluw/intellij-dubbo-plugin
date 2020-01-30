@@ -13,17 +13,14 @@ import javax.swing.text.JTextComponent
 object UiUtils {
 
     inline fun <reified T> setEditorNumericType(comboBox: JComboBox<T>) {
-        val tmp = arrayOfNulls<T>(comboBox.itemCount)
+        val items = comboBox.getItems()
         val select = comboBox.selectedItem
-        for (i in 0 until comboBox.itemCount) {
-            tmp[i] = comboBox.getItemAt(i)
-        }
         val comp = comboBox.editor.editorComponent
         if (comp is JTextComponent) {
             comp.document = NumberDocument()
         }
         comboBox.removeAllItems()
-        tmp.forEach {
+        items.forEach {
             it?.run {
                 comboBox.addItem(this)
                 if (select == this) {
@@ -33,7 +30,7 @@ object UiUtils {
         }
     }
 
-    inline fun JComponent.getTextWithWidth(text: String?, width: Int, ellipsis: String?): String? {
+    fun JComponent.getTextWithWidth(text: String?, width: Int, ellipsis: String?): String? {
         if (!text.isNullOrBlank() && width > 0) {
             val fm = getFontMetrics(font)
             if (fm.stringWidth(text) >= width) {
@@ -55,7 +52,7 @@ object UiUtils {
         return text
     }
 
-    inline fun JTextComponent.adapterTextComponentWidth(width: Int, ellipsis: String?) {
+    fun JTextComponent.adapterTextComponentWidth(width: Int, ellipsis: String?) {
         val n = getTextWithWidth(text, width, ellipsis)
         if (n != text) {
             toolTipText = text
@@ -63,7 +60,7 @@ object UiUtils {
         }
     }
 
-    inline fun JLabel.adapterLabelComponentWidth(width: Int, ellipsis: String?) {
+    fun JLabel.adapterLabelComponentWidth(width: Int, ellipsis: String?) {
         val n = getTextWithWidth(text, width, ellipsis)
         if (n != text) {
             toolTipText = text

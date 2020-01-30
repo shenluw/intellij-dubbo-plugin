@@ -8,6 +8,8 @@ import com.intellij.util.xmlb.annotations.MapAnnotation
 import com.intellij.util.xmlb.annotations.Transient
 import com.jetbrains.rd.util.concurrentMapOf
 import org.apache.commons.codec.digest.DigestUtils
+import org.apache.dubbo.common.URL
+import org.apache.dubbo.common.constants.CommonConstants
 
 
 /**
@@ -28,7 +30,7 @@ class DubboStorage : PersistentStateComponent<DubboStorage> {
 
     /* 由于第一次连接dubbo时会收到全量通知，所以不需要存储，这里只作为缓存 */
     @Transient
-    private val apps = hashSetOf<AppInfo>()
+    private val services = hashSetOf<ServiceInfo>()
     @MapAnnotation
     val registries = concurrentMapOf<String, RegistryInfo>()
 
@@ -37,14 +39,34 @@ class DubboStorage : PersistentStateComponent<DubboStorage> {
 
     var lastConnectRegistry: String? = null
 
-    fun getAppInfos(registry: String): List<AppInfo>? {
-        return apps.filter { info -> info.registry == registry }
+    fun getServices(registry: String, appName: String? = null, interfaceName: String? = null): List<ServiceInfo>? {
+        var tmp = services.filter { info -> info.registry == registry }
+        if (!appName.isNullOrBlank()) {
+            tmp = tmp.filter { info -> info.appName == appName }
+        }
+        if (!interfaceName.isNullOrBlank()) {
+            tmp = tmp.filter { info -> info.interfaceName == interfaceName }
+        }
+        return tmp
     }
 
-    fun setAppInfos(registry: String, infos: Collection<AppInfo>) {
+    fun setServices(registry: String, infos: Collection<ServiceInfo>) {
         removeRegistry(registry)
         if (infos.isNotEmpty()) {
-            apps.addAll(infos)
+            services.addAll(infos)
+        }
+    }
+
+    fun addServices(infos: Collection<ServiceInfo>) {
+        infos.forEach { info ->
+            val iter = services.iterator()
+            if (iter.hasNext()) {
+                val m = iter.next()
+                if (m.address == info.address && info.interfaceName == m.interfaceName) {
+                    iter.remove()
+                }
+            }
+            services.add(info)
         }
     }
 
@@ -53,7 +75,7 @@ class DubboStorage : PersistentStateComponent<DubboStorage> {
     }
 
     fun removeRegistry(registry: String, removeRegistryRecord: Boolean = false) {
-        val iterator = apps.iterator()
+        val iterator = services.iterator()
         while (iterator.hasNext()) {
             val a = iterator.next()
             if (a.registry == registry) {
@@ -62,6 +84,23 @@ class DubboStorage : PersistentStateComponent<DubboStorage> {
         }
         if (removeRegistryRecord) {
             registries.remove(registry)
+        }
+    }
+
+    fun removeByURL(registry: String, urls: List<URL>) {
+        val iterator = services.iterator()
+        while (iterator.hasNext()) {
+            val a = iterator.next()
+            if (a.registry == registry) {
+                if (urls.find {
+                        it.getParameter(
+                            CommonConstants.APPLICATION_KEY,
+                            ""
+                        ) == a.appName && a.interfaceName == it.serviceInterface
+                    } != null) {
+                    iterator.remove()
+                }
+            }
         }
     }
 
@@ -87,7 +126,7 @@ class DubboStorage : PersistentStateComponent<DubboStorage> {
     }
 
     fun clear() {
-        apps.clear()
+        services.clear()
         invokeHistory.clear()
     }
 

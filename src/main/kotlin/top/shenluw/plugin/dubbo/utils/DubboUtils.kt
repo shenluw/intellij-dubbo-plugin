@@ -3,7 +3,10 @@ package top.shenluw.plugin.dubbo.utils
 import com.intellij.openapi.project.Project
 import org.apache.dubbo.common.URL
 import org.apache.dubbo.common.constants.CommonConstants
-import top.shenluw.plugin.dubbo.*
+import top.shenluw.plugin.dubbo.Constants
+import top.shenluw.plugin.dubbo.DubboStorage
+import top.shenluw.plugin.dubbo.MethodInfo
+import top.shenluw.plugin.dubbo.ServiceInfo
 import top.shenluw.plugin.dubbo.client.DubboClientException
 import java.io.StringReader
 
@@ -42,96 +45,29 @@ object DubboUtils {
         )}"
     }
 
-    /**
-     * 由于dubbo保证对interfaceName全量通知
-     * 如果inc中的 interfaceName 和 origin 相同，则移除 origin 中的数据
-     */
-    fun mergeAppInfos(origin: Collection<AppInfo>?, inc: Collection<AppInfo>?): Collection<AppInfo> {
-        if (origin.isNullOrEmpty()) {
-            return when {
-                inc.isNullOrEmpty() -> emptyList()
-                else -> inc
-            }
-        } else {
-            if (inc.isNullOrEmpty()) {
-                return origin
-            }
-        }
-        // 2个都不为空
-        val list = inc.toMutableList()
-        origin.forEach { app ->
-            val info = findApp(app, list)
-            if (info == null) {
-                list.add(app)
-            } else {
-                val services = info.services
-                if (services == null) {
-                    info.services = app.services
-                } else {
-                    app.services?.forEach {
-                        if (!containsService(it.interfaceName, services)) {
-                            services.add(it)
-                        }
-                    }
-                }
-            }
-        }
-        return list
-    }
-
-    private fun findApp(app: AppInfo, apps: Collection<AppInfo>): AppInfo? {
-        return apps.find { it.name == app.name && it.registry == app.registry && it.address == app.address }
-    }
-
     private fun containsService(interfaceName: String, services: Collection<ServiceInfo>): Boolean {
         return services.find { it.interfaceName == interfaceName } != null
     }
 
-    fun getInterfaceNames(appName: String, apps: Collection<AppInfo>): List<String> {
-        return apps.asSequence().filter { it.name == appName }
-            .mapNotNull { it.services }
-            .flatMap { it.asSequence() }
-            .map { it.interfaceName }
-            .sorted().toList()
-    }
-
-    fun getMethodKey(appName: String, interfaceName: String, apps: Collection<AppInfo>): List<String> {
-        return apps.asSequence().filter { it.name == appName }
-            .mapNotNull { it.services }
-            .flatMap { it.asSequence() }
-            .filter { it.interfaceName == interfaceName }
+    fun getMethodKey(appName: String, interfaceName: String, infos: Collection<ServiceInfo>): Set<String> {
+        return infos.asSequence().filter { it.appName == appName && it.interfaceName == interfaceName }
             .mapNotNull { it.methods }
             .flatMap { it.asSequence() }
             .mapNotNull { it.key }
-            .sorted().toList()
+            .toSortedSet()
     }
 
-    fun getVersions(appName: String, interfaceName: String, apps: List<AppInfo>): List<String> {
-        return apps.asSequence().filter { it.name == appName }
-            .mapNotNull { it.services }
-            .flatMap { it.asSequence() }
-            .filter { it.interfaceName == interfaceName }
+    fun getVersions(appName: String, interfaceName: String, infos: List<ServiceInfo>): Set<String> {
+        return infos.asSequence().filter { it.appName == appName && it.interfaceName == interfaceName }
             .map { it.version }
-            .sorted().toList()
+            .toSortedSet()
     }
 
-    fun getGroups(appName: String, interfaceName: String, apps: List<AppInfo>): List<String> {
-        return apps.asSequence().filter { it.name == appName }
-            .mapNotNull { it.services }
-            .flatMap { it.asSequence() }
-            .filter { it.interfaceName == interfaceName }
+    fun getGroups(appName: String, interfaceName: String, infos: List<ServiceInfo>): Set<String> {
+        return infos.asSequence().filter { it.appName == appName && it.interfaceName == interfaceName }
             .mapNotNull { it.group }
             .filter { it.isNotBlank() }
-            .sorted().toList()
-    }
-
-    fun getServers(appName: String, interfaceName: String, apps: List<AppInfo>): List<String> {
-        return apps.asSequence().filter { it.name == appName }
-            .mapNotNull { it.services }
-            .flatMap { it.asSequence() }
-            .filter { it.interfaceName == interfaceName }
-            .mapNotNull { it.address }
-            .sorted().toList()
+            .toSortedSet()
     }
 
     fun getMethodInfo(
@@ -142,12 +78,10 @@ object DubboUtils {
         methodKey: String,
         version: String
     ): List<MethodInfo> {
-        val apps = DubboStorage.getInstance(project).getAppInfos(registry)
-        if (apps.isNullOrEmpty()) return emptyList()
-        return apps.asSequence().filter { it.name == appName }
-            .mapNotNull { it.services }
-            .flatMap { it.asSequence() }
-            .filter { it.interfaceName == interfaceName && it.version == version }
+        val infos = DubboStorage.getInstance(project).getServices(registry)
+        if (infos.isNullOrEmpty()) return emptyList()
+        return infos.asSequence()
+            .filter { it.appName == appName && it.interfaceName == interfaceName && it.version == version }
             .mapNotNull { it.methods }
             .flatMap { it.asSequence() }
             .filter { it.key == methodKey }
@@ -161,6 +95,23 @@ object DubboUtils {
         } else {
             key.substring(0, index)
         }
+    }
+
+    fun Collection<URL>.containsByCondition(app: String, interfaceName: String? = null): Boolean {
+        forEach {
+            val appName = it.getParameter(CommonConstants.APPLICATION_KEY, "")
+            val serviceInterface = it.serviceInterface
+            if (interfaceName.isNullOrBlank()) {
+                if (appName == app) {
+                    return true
+                }
+            } else {
+                if (appName == app && interfaceName == serviceInterface) {
+                    return true
+                }
+            }
+        }
+        return false
     }
 
     fun getExtension(type: String?): String {
