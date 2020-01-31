@@ -107,19 +107,21 @@ class DubboStorage : PersistentStateComponent<DubboStorage> {
     /**
      * 获取最后一次调用的参数
      */
-    fun getLastInvoke(appName: String, interfaceName: String, method: String, version: String): String? {
-        val key = DigestUtils.md2Hex("$appName$interfaceName$method$version")
-        for (i in invokeHistory.size - 1..0) {
-            if (invokeHistory[i].key == key) {
-                return invokeHistory[i].value
+    fun getLastInvoke(service: ServiceInfo, method: MethodInfo): InvokeHistory? {
+        val key = getKey(service, method)
+        if (invokeHistory.size > 0) {
+            for (i in invokeHistory.size - 1 downTo 0) {
+                if (invokeHistory[i].key == key) {
+                    return invokeHistory[i]
+                }
             }
         }
         return null
     }
 
-    fun addInvokeHistory(appName: String, interfaceName: String, method: String, version: String, value: String) {
-        val key = DigestUtils.md2Hex("$appName$interfaceName$method$version")
-        invokeHistory.add(InvokeHistory(key, value))
+    fun addInvokeHistory(service: ServiceInfo, method: MethodInfo, request: String, response: String? = null) {
+        val key = getKey(service, method)
+        invokeHistory.add(InvokeHistory(key, request, response))
         if (invokeHistory.size > MAX_HISTORY) {
             invokeHistory.removeAt(0)
         }
@@ -128,6 +130,10 @@ class DubboStorage : PersistentStateComponent<DubboStorage> {
     fun clear() {
         services.clear()
         invokeHistory.clear()
+    }
+
+    private fun getKey(service: ServiceInfo, method: MethodInfo): String {
+        return DigestUtils.md2Hex("${service.appName}${service.interfaceName}${method.key}${service.version}")
     }
 
     override fun getState() = this

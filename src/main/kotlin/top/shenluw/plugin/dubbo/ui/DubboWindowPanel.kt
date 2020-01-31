@@ -91,13 +91,13 @@ class DubboWindowPanel : DubboWindowForm(), KLogger {
     }
 
 
-    fun updateParameterEditor(language: Language, text: String) {
+    private fun updateParameterEditor(language: Language, text: String) {
         contentRootPane.leftComponent = null
         parameterEditor = createEditorUI(language, text, false)
         contentRootPane.leftComponent = parameterEditor
     }
 
-    fun updateResponseEditor(language: Language, text: String) {
+    private fun updateResponseEditor(language: Language, text: String) {
         val dividerLocation = contentRootPane.dividerLocation
         contentRootPane.rightComponent = null
         responseEditor = createEditorUI(language, text, true)
@@ -152,16 +152,20 @@ class DubboWindowPanel : DubboWindowForm(), KLogger {
         registryComboBox.setSelectChangedListener(handler)
     }
 
-    fun setOnApplicationChangedListener(handler: (app: String) -> Unit) {
+    fun setOnApplicationChangedListener(handler: (v: String) -> Unit) {
         applicationComboBox.setSelectChangedListener(handler)
     }
 
-    fun setOnServiceChangedListener(handler: (app: String) -> Unit) {
+    fun setOnServiceChangedListener(handler: (v: String) -> Unit) {
         serviceComboBox.setSelectChangedListener(handler)
     }
 
-    fun setOnMethodChangedListener(handler: (app: String) -> Unit) {
+    fun setOnMethodChangedListener(handler: (v: String) -> Unit) {
         methodComboBox.setSelectChangedListener(handler)
+    }
+
+    fun setOnVersionChangedListener(handler: (v: String) -> Unit) {
+        versionComboBox.setSelectChangedListener(handler)
     }
 
     fun setOnOpenResponseEditorListener(handler: () -> Unit) {

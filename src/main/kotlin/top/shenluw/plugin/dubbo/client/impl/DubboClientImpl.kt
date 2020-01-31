@@ -68,8 +68,6 @@ class DubboClientImpl(
 
     private var dubboTelnetClients = concurrentMapOf<String, DubboClient>()
 
-    private var methodInfoCache = concurrentMapOf<String, List<MethodInfo>>()
-
     /**
      * key = application + interfaceName
      */
@@ -198,10 +196,6 @@ class DubboClientImpl(
             throw DubboClientException("url already removed")
         }
 
-        val methods = methodInfoCache[key]
-        if (methods != null) {
-            return methods
-        }
         return runBlocking {
             val client = getTelnetClient("${url.host}:${url.port}")
                 ?: throw DubboClientException("telnet can not connect")

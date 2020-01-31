@@ -15,7 +15,6 @@ import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.apache.dubbo.common.URL
-import org.apache.dubbo.common.constants.CommonConstants.*
 import top.shenluw.plugin.dubbo.client.*
 import top.shenluw.plugin.dubbo.client.impl.DubboClientImpl
 import top.shenluw.plugin.dubbo.utils.DubboUtils
@@ -146,37 +145,27 @@ class DubboService(val project: Project) : Disposable, KLogger {
      */
     suspend fun getServiceInfo(registry: String, urls: List<URL>): Collection<ServiceInfo> {
         checkDisposed()
-        val client = getOrThrowClient(registry)
-
+        getOrThrowClient(registry)
         return suspendCancellableCoroutine { ctx ->
-            val values = arrayListOf<ServiceInfo>()
-            urls.forEach {
-                val info = getServiceInfo(client, it)
-                if (info != null) {
-                    values.add(info)
-                }
+            val client = getOrThrowClient(registry)
+            val values = urls.map {
+                val m = client.getServiceMethods(it)
+                ServiceInfo(registry, it, m)
             }
             ctx.resume(values)
         }
     }
 
-    private fun getServiceInfo(client: DubboClient, url: URL): ServiceInfo? {
-        val methodInfos = client.getServiceMethods(url)
-
-        val appName = url.getParameter(APPLICATION_KEY, "")
-        val version = url.getParameter(VERSION_KEY, "")
-        val serviceInterface = url.serviceInterface
-        val group = url.getParameter(GROUP_KEY, "")
-
-        return ServiceInfo(
-            client.address,
-            appName,
-            serviceInterface,
-            version,
-            group,
-            "${url.protocol}://${url.address}",
-            methodInfos.toMutableList()
-        )
+    suspend fun updateServiceInfo(registry: String, services: Collection<ServiceInfo>) {
+        checkDisposed()
+        getOrThrowClient(registry)
+        return suspendCancellableCoroutine { ctx ->
+            val client = getOrThrowClient(registry)
+            services.forEach {
+                it.methods = client.getServiceMethods(it.url!!)
+            }
+            ctx.resume(Unit)
+        }
     }
 
     suspend fun execute(registry: String, request: DubboRequest): DubboResponse {

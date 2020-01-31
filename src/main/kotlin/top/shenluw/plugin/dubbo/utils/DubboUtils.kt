@@ -38,17 +38,6 @@ object DubboUtils {
         }
     }
 
-    fun URL.getAppKey(): String {
-        return "${protocol}${address}${getParameter(
-            CommonConstants.APPLICATION_KEY,
-            ""
-        )}"
-    }
-
-    private fun containsService(interfaceName: String, services: Collection<ServiceInfo>): Boolean {
-        return services.find { it.interfaceName == interfaceName } != null
-    }
-
     fun getMethodKey(appName: String, interfaceName: String, infos: Collection<ServiceInfo>): Set<String> {
         return infos.asSequence().filter { it.appName == appName && it.interfaceName == interfaceName }
             .mapNotNull { it.methods }
@@ -57,15 +46,30 @@ object DubboUtils {
             .toSortedSet()
     }
 
+    fun getMethodKey(infos: Collection<ServiceInfo>): Set<String> {
+        return infos.asSequence()
+            .mapNotNull { it.methods }
+            .flatMap { it.asSequence() }
+            .mapNotNull { it.key }
+            .toSortedSet()
+    }
+
     fun getVersions(appName: String, interfaceName: String, infos: List<ServiceInfo>): Set<String> {
-        return infos.asSequence().filter { it.appName == appName && it.interfaceName == interfaceName }
+        return infos.filter { it.appName == appName && it.interfaceName == interfaceName }
             .map { it.version }
             .toSortedSet()
     }
 
     fun getGroups(appName: String, interfaceName: String, infos: List<ServiceInfo>): Set<String> {
-        return infos.asSequence().filter { it.appName == appName && it.interfaceName == interfaceName }
+        return infos.filter { it.appName == appName && it.interfaceName == interfaceName }
             .mapNotNull { it.group }
+            .filter { it.isNotBlank() }
+            .toSortedSet()
+    }
+
+    fun getServers(appName: String, interfaceName: String, infos: List<ServiceInfo>): Set<String> {
+        return infos.filter { it.appName == appName && it.interfaceName == interfaceName }
+            .map { it.address }
             .filter { it.isNotBlank() }
             .toSortedSet()
     }
@@ -97,21 +101,8 @@ object DubboUtils {
         }
     }
 
-    fun Collection<URL>.containsByCondition(app: String, interfaceName: String? = null): Boolean {
-        forEach {
-            val appName = it.getParameter(CommonConstants.APPLICATION_KEY, "")
-            val serviceInterface = it.serviceInterface
-            if (interfaceName.isNullOrBlank()) {
-                if (appName == app) {
-                    return true
-                }
-            } else {
-                if (appName == app && interfaceName == serviceInterface) {
-                    return true
-                }
-            }
-        }
-        return false
+    fun getSimpleServiceInfo(registry: String, urls: List<URL>): Collection<ServiceInfo> {
+        return urls.map { ServiceInfo(registry, it) }.toSet()
     }
 
     fun getExtension(type: String?): String {

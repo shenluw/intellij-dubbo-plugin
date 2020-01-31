@@ -53,6 +53,7 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
             setOnApplicationChangedListener { onApplicationChanged(it) }
             setOnServiceChangedListener { onInterfaceChanged(it) }
             setOnMethodChangedListener { onMethodChanged(it) }
+            setOnVersionChangedListener { onVersionChanged(it) }
             setOnExecClickListener { onExec(NoConcurrentInfo) }
             setOnConcurrentExecClickListener {
                 onExec(ConcurrentInfo(getConcurrentCount(), getConcurrentGroup()))
@@ -129,7 +130,7 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
         val methodKey = ui.getSelectedMethod()
         val version = ui.getSelectVersion()
 
-        if (app.isNullOrBlank() || interfaceName.isNullOrBlank() || methodKey.isNullOrBlank() || version.isNullOrBlank()) {
+        if (app.isNullOrBlank() || interfaceName.isNullOrBlank() || methodKey.isNullOrBlank() || version == null) {
             notifyMsg("dubbo", "接口必须参数不全", WARNING)
             return
         }
@@ -288,6 +289,7 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
             updateInterface(apps)
             updateMethod(apps)
             updateMisc(apps)
+            updateEditorPanel()
         }
     }
 
@@ -296,6 +298,7 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
         if (apps.isNotEmpty()) {
             updateMethod(apps)
             updateMisc(apps)
+            updateEditorPanel()
         }
     }
 
@@ -303,7 +306,12 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
         val apps = getOrResetUi()
         if (apps.isNotEmpty()) {
             updateMisc(apps)
+            updateEditorPanel()
         }
+    }
+
+    private fun onVersionChanged(group: String) {
+        updateEditorPanel()
     }
 
     private fun getOrResetUi(): List<ServiceInfo> {
@@ -324,18 +332,19 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
     }
 
     private fun refreshRegistry() = runBlocking {
-        if (project == null) return@runBlocking
+        val project = project ?: return@runBlocking
         val ui = dubboWindowPanel ?: return@runBlocking
-        val registry = ui.getSelectedRegistry()
-        if (registry == null) {
-            return@runBlocking
-        }
+        val registry = ui.getSelectedRegistry() ?: return@runBlocking
+
         val client = dubboService?.getClient(registry)
         if (client == null || !client.connected) {
             return@runBlocking
         }
         val urls = client.getUrls()
-        // TODO: 2020/1/28 需要实现刷新接口信息 
+
+        DubboStorage.getInstance(project).removeRegistry(registry)
+        DubboStorage.getInstance(project).setServices(registry, DubboUtils.getSimpleServiceInfo(registry, urls))
+        updateAll()
     }
 
     private fun updateApplication(infos: List<ServiceInfo>) {
@@ -360,12 +369,28 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
 
     private fun updateMethod(infos: List<ServiceInfo>) {
         val ui = dubboWindowPanel ?: return
+        val registry = ui.getSelectedRegistry()
         val appName = ui.getSelectedApplication()
         val interfaceName = ui.getSelectedService()
-        if (appName.isNullOrBlank() || interfaceName.isNullOrBlank()) {
+        if (appName.isNullOrBlank() || interfaceName.isNullOrBlank() || registry.isNullOrBlank()) {
             ui.updateMethodList(emptyList())
         } else {
-            ui.updateMethodList(DubboUtils.getMethodKey(appName, interfaceName, infos))
+            val services = infos.filter { it.appName == appName && it.interfaceName == interfaceName }
+            if (services.find { it.methods == null } != null) {
+                // 需要获取方法信息
+                GlobalScope.async {
+                    kotlin.runCatching { dubboService?.updateServiceInfo(registry, services) }
+                        .onSuccess {
+                            invokeLater {
+                                ui.updateMethodList(DubboUtils.getMethodKey(appName, interfaceName, services))
+                            }
+                        }.onFailure {
+                            notifyMsg("dubbo", "方法详情获取失败", INFORMATION)
+                        }
+                }
+            } else {
+                ui.updateMethodList(DubboUtils.getMethodKey(appName, interfaceName, services))
+            }
         }
     }
 
@@ -376,9 +401,53 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
         if (appName.isNullOrBlank() || interfaceName.isNullOrBlank()) {
             ui.updateVersionList(emptyList())
             ui.updateGroupList(emptyList())
+            ui.updateServerList(emptyList())
         } else {
             ui.updateVersionList(DubboUtils.getVersions(appName, interfaceName, infos))
             ui.updateGroupList(DubboUtils.getGroups(appName, interfaceName, infos))
+            ui.updateServerList(DubboUtils.getServers(appName, interfaceName, infos))
+        }
+    }
+
+    private fun updateEditorPanel() {
+        val project = project ?: return
+
+        val ui = dubboWindowPanel ?: return
+        val registry = ui.getSelectedRegistry()
+        val appName = ui.getSelectedApplication()
+        val interfaceName = ui.getSelectedService()
+        val methodKey = ui.getSelectedMethod()
+        val version = ui.getSelectVersion()
+
+        if (methodKey.isNullOrBlank()
+            || registry.isNullOrBlank()
+            || appName.isNullOrBlank()
+            || interfaceName.isNullOrBlank()
+            || version.isNullOrBlank()
+        ) {
+            ui.updateParamAreaText(null)
+        } else {
+            val storage = DubboStorage.getInstance(project)
+            val services = storage.getServices(registry, appName, interfaceName)
+                ?.filter { it.version == version }
+            val method = services?.asSequence()
+                ?.mapNotNull { it.methods }
+                ?.flatMap { it.asSequence() }
+                ?.find { it.key == methodKey }
+
+            if (method == null || services.isNullOrEmpty()) {
+                ui.updateParamAreaText(null)
+                ui.updateResultAreaText(null)
+            } else {
+                val history = storage.getLastInvoke(services[0], method)
+                if (history == null) {
+                    ui.updateParamAreaText(null)
+                    ui.updateResultAreaText(null)
+                } else {
+                    ui.updateParamAreaText(history.request)
+                    ui.updateResultAreaText(history.response)
+                }
+            }
         }
     }
 
@@ -389,6 +458,7 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
             updateInterface(apps)
             updateMethod(apps)
             updateMisc(apps)
+            updateEditorPanel()
         }
     }
 
@@ -406,57 +476,26 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
     }
 
     override fun onUrlChanged(registry: String, urls: List<URL>, state: URLState) {
+        val project = project ?: return
         val selectedRegistry = dubboWindowPanel?.getSelectedRegistry()
 
+        val storage = DubboStorage.getInstance(project)
         // 只要存在变化就移除缓存
-        project?.run {
-            DubboStorage.getInstance(this).removeByURL(registry, urls)
+        storage.removeByURL(registry, urls)
+
+        if (state == URLState.ADD || state == URLState.UPDATE) {
+            val infos = DubboUtils.getSimpleServiceInfo(registry, urls)
+            storage.addServices(infos)
         }
 
         if (selectedRegistry == registry) {
-            val selectApplication = dubboWindowPanel?.getSelectedApplication()
-            val selectedService = dubboWindowPanel?.getSelectedService()
-            project?.run {
-                if (state == URLState.ADD || state == URLState.UPDATE) {
-                    runBlocking {
-                        kotlin.runCatching {
-                            dubboService?.getServiceInfo(registry, urls)
-                        }.onSuccess {
-                            project?.run {
-                                if (!it.isNullOrEmpty()) {
-                                    DubboStorage.getInstance(this).addServices(it)
-                                }
-                                val services = DubboStorage.getInstance(this).getServices(registry)
-                                invokeLater {
-                                    if (services.isNullOrEmpty()) {
-                                        dubboWindowPanel?.resetToEmpty()
-                                    } else {
-                                        updateAll()
-                                    }
-                                }
-                            }
-                        }.onFailure {
-                            notifyMsg("dubbo", "服务详情获取失败: ${it.message}", WARNING)
-                        }
-                    }
-                } else {
-                    val services = DubboStorage.getInstance(this).getServices(registry, selectApplication)
-                    if (selectApplication.isNullOrBlank()) {
-                        return
-                    }
-                    invokeLater {
-                        if (services.isNullOrEmpty()) {
-                            dubboWindowPanel?.resetToEmpty()
-                        } else {
-                            updateApplication(services)
-                            if (!selectedService.isNullOrBlank()) {
-                                updateInterface(services)
-                                updateMethod(services)
-                                updateMisc(services)
-                            }
-                        }
-                    }
-                }
+            invokeLater {
+                val services = storage.getServices(registry) ?: emptyList()
+                updateApplication(services)
+                updateInterface(services)
+                updateMisc(services)
+                updateMethod(services)
+                updateEditorPanel()
             }
         }
     }

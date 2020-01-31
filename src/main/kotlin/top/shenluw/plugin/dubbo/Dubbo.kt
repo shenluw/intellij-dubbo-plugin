@@ -1,5 +1,7 @@
 package top.shenluw.plugin.dubbo
 
+import org.apache.dubbo.common.URL
+import org.apache.dubbo.common.constants.CommonConstants
 import top.shenluw.plugin.dubbo.parameter.SimplifyParameter
 import java.io.Serializable
 
@@ -17,8 +19,17 @@ data class ServiceInfo(
     val group: String?,
     /* 具体主机ip */
     val address: String,
-    var methods: MutableList<MethodInfo>?
-) : Serializable
+    val protocol: String,
+    var methods: List<MethodInfo>?,
+    val url: URL?
+) : Serializable {
+    constructor(registry: String?, url: URL, methods: List<MethodInfo>? = null) : this(
+        registry, url.getParameter(CommonConstants.APPLICATION_KEY, ""), url.serviceInterface,
+        url.getParameter(CommonConstants.VERSION_KEY, ""),
+        url.getParameter(CommonConstants.GROUP_KEY, ""),
+        url.address, url.protocol, methods, url
+    )
+}
 
 data class MethodInfo(val method: String, val argumentTypes: Array<String>, val returnType: String) : Serializable {
 
@@ -57,7 +68,8 @@ data class MethodInfo(val method: String, val argumentTypes: Array<String>, val 
     }
 }
 
-data class InvokeHistory(var key: String? = null, var value: String? = null) : Serializable
+data class InvokeHistory(val key: String? = null, val request: String? = null, val response: String? = null) :
+    Serializable
 
 data class RegistryInfo(var address: String? = null, var username: String? = null, var password: String? = null) :
     Serializable
