@@ -8,6 +8,7 @@ import top.shenluw.plugin.dubbo.DubboStorage
 import top.shenluw.plugin.dubbo.MethodInfo
 import top.shenluw.plugin.dubbo.ServiceInfo
 import top.shenluw.plugin.dubbo.client.DubboClientException
+import top.shenluw.plugin.dubbo.parameter.SimplifyParameter
 import java.io.StringReader
 
 /**
@@ -122,6 +123,20 @@ object DubboUtils {
             return Constants.YAML_EXTENSION
         }
         return Constants.TXT_EXTENSION
+    }
+
+    fun genMethodKey(method: String, argumentTypes: Array<String>): String {
+        return if (argumentTypes.isNullOrEmpty()) {
+            method
+        } else {
+            val sb = StringBuilder()
+            sb.append(method).append('(')
+            argumentTypes.joinTo(sb, transform = {
+                SimplifyParameter.transform(it)
+            })
+            sb.append(')')
+            sb.toString()
+        }
     }
 
     private val threadLocal = object : ThreadLocal<ClassLoader>() {

@@ -175,6 +175,9 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
     private suspend fun callOnce(registry: String, request: DubboRequest) {
         kotlin.runCatching { dubboService!!.execute(registry, request) }
             .onSuccess { response ->
+                project?.run {
+                    DubboStorage.getInstance(this).addInvokeHistory(request, response)
+                }
                 if (response.exception != null) {
                     notifyMsg("dubbo", "接口调用异常 ${response.exception.message}", WARNING)
                 } else {
@@ -197,6 +200,9 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
         kotlin.runCatching {
             dubboService!!.execute(registry, request, concurrentInfo)
         }.onSuccess { f ->
+            project?.run {
+                DubboStorage.getInstance(this).addInvokeHistory(request, null)
+            }
             invokeLater { dubboWindowPanel?.updateResultAreaText("start\n") }
             val format = SimpleDateFormat(Constants.DATE_FORMAT_PATTERN)
             for (response in f) {

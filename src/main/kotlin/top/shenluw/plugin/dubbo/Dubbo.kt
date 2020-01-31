@@ -1,8 +1,10 @@
 package top.shenluw.plugin.dubbo
 
+import com.intellij.util.xmlb.annotations.Attribute
+import com.intellij.util.xmlb.annotations.Tag
 import org.apache.dubbo.common.URL
 import org.apache.dubbo.common.constants.CommonConstants
-import top.shenluw.plugin.dubbo.parameter.SimplifyParameter
+import top.shenluw.plugin.dubbo.utils.DubboUtils
 import java.io.Serializable
 
 /**
@@ -34,17 +36,7 @@ data class ServiceInfo(
 data class MethodInfo(val method: String, val argumentTypes: Array<String>, val returnType: String) : Serializable {
 
     val key: String by lazy {
-        if (argumentTypes.isNullOrEmpty()) {
-            method
-        } else {
-            val sb = StringBuilder()
-            sb.append(method).append('(')
-            argumentTypes.joinTo(sb, transform = {
-                SimplifyParameter.transform(it)
-            })
-            sb.append(')')
-            sb.toString()
-        }
+        DubboUtils.genMethodKey(method, argumentTypes)
     }
 
     override fun equals(other: Any?): Boolean {
@@ -68,7 +60,12 @@ data class MethodInfo(val method: String, val argumentTypes: Array<String>, val 
     }
 }
 
-data class InvokeHistory(val key: String? = null, val request: String? = null, val response: String? = null) :
+@Tag
+data class InvokeHistory(
+    @Attribute val key: String? = null,
+    @Attribute val request: String? = null,
+    @Attribute val response: String? = null
+) :
     Serializable
 
 data class RegistryInfo(var address: String? = null, var username: String? = null, var password: String? = null) :

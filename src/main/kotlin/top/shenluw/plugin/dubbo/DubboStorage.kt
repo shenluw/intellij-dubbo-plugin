@@ -1,15 +1,21 @@
 package top.shenluw.plugin.dubbo
 
-import com.intellij.openapi.components.*
+import com.intellij.openapi.components.PersistentStateComponent
+import com.intellij.openapi.components.ServiceManager
+import com.intellij.openapi.components.State
+import com.intellij.openapi.components.Storage
 import com.intellij.openapi.project.Project
 import com.intellij.util.xmlb.XmlSerializerUtil
-import com.intellij.util.xmlb.annotations.CollectionBean
 import com.intellij.util.xmlb.annotations.MapAnnotation
 import com.intellij.util.xmlb.annotations.Transient
+import com.intellij.util.xmlb.annotations.XCollection
 import com.jetbrains.rd.util.concurrentMapOf
 import org.apache.commons.codec.digest.DigestUtils
 import org.apache.dubbo.common.URL
 import org.apache.dubbo.common.constants.CommonConstants
+import top.shenluw.plugin.dubbo.client.DubboRequest
+import top.shenluw.plugin.dubbo.client.DubboResponse
+import top.shenluw.plugin.dubbo.utils.DubboUtils
 
 
 /**
@@ -17,7 +23,7 @@ import org.apache.dubbo.common.constants.CommonConstants
  * @author Shenluw
  * created：2019/10/6 21:50
  */
-@State(name = "DubboStorage", storages = [Storage(StoragePathMacros.WORKSPACE_FILE)])
+@State(name = "DubboStorage", storages = [Storage(Constants.DUBBO_STORAGE_FILE)])
 class DubboStorage : PersistentStateComponent<DubboStorage> {
 
     companion object {
@@ -34,8 +40,8 @@ class DubboStorage : PersistentStateComponent<DubboStorage> {
     @MapAnnotation
     val registries = concurrentMapOf<String, RegistryInfo>()
 
-    @CollectionBean
-    val invokeHistory = mutableListOf<InvokeHistory>()
+    @XCollection(propertyElementName = "invokeHistories")
+    val invokeHistories = mutableListOf<InvokeHistory>()
 
     var lastConnectRegistry: String? = null
 
@@ -109,31 +115,39 @@ class DubboStorage : PersistentStateComponent<DubboStorage> {
      */
     fun getLastInvoke(service: ServiceInfo, method: MethodInfo): InvokeHistory? {
         val key = getKey(service, method)
-        if (invokeHistory.size > 0) {
-            for (i in invokeHistory.size - 1 downTo 0) {
-                if (invokeHistory[i].key == key) {
-                    return invokeHistory[i]
+        if (invokeHistories.size > 0) {
+            for (i in invokeHistories.size - 1 downTo 0) {
+                if (invokeHistories[i].key == key) {
+                    return invokeHistories[i]
                 }
             }
         }
         return null
     }
 
-    fun addInvokeHistory(service: ServiceInfo, method: MethodInfo, request: String, response: String? = null) {
-        val key = getKey(service, method)
-        invokeHistory.add(InvokeHistory(key, request, response))
-        if (invokeHistory.size > MAX_HISTORY) {
-            invokeHistory.removeAt(0)
+    fun addInvokeHistory(request: DubboRequest, response: DubboResponse? = null) {
+        val key = getKey(request)
+        invokeHistories.add(InvokeHistory(key, Gson.toJson(request.params), Gson.toJson(response)))
+        if (invokeHistories.size > MAX_HISTORY) {
+            invokeHistories.removeAt(0)
         }
     }
 
     fun clear() {
         services.clear()
-        invokeHistory.clear()
+        invokeHistories.clear()
     }
 
     private fun getKey(service: ServiceInfo, method: MethodInfo): String {
         return DigestUtils.md2Hex("${service.appName}${service.interfaceName}${method.key}${service.version}")
+    }
+
+    private fun getKey(request: DubboRequest): String {
+        val methodKey = DubboUtils.genMethodKey(
+            request.method,
+            request.params.map { it.type }.toTypedArray()
+        )
+        return DigestUtils.md2Hex("${request.appName}${request.interfaceName}$methodKey${request.version}")
     }
 
     override fun getState() = this

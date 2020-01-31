@@ -21,8 +21,10 @@ object Constants {
     const val DUBBO_TEMP_DIR = "dubbo-plugin"
     const val DUBBO_TEMP_RESPONSE_PREFIX = "dubbo_resp"
 
+
     val DEFAULT_CHARSET = Charsets.UTF_8
 
     const val DATE_FORMAT_PATTERN = "yyyy-MM-dd HH:mm:ss sss"
 
+    const val DUBBO_STORAGE_FILE = "dubboPlugin.xml"
 }
