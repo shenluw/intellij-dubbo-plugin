@@ -1,5 +1,14 @@
 package top.shenluw.plugin.dubbo.utils
 
+import com.intellij.lang.Language
+import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.openapi.editor.CaretModel
+import com.intellij.openapi.fileTypes.StdFileTypes
+import com.intellij.openapi.util.text.StringUtil
+import com.intellij.psi.PsiDocumentManager
+import com.intellij.psi.PsiFileFactory
+import com.intellij.psi.codeStyle.CodeStyleManager
+import com.intellij.ui.EditorTextField
 import com.intellij.ui.NumberDocument
 import javax.swing.JComboBox
 import javax.swing.JComponent
@@ -76,4 +85,44 @@ object UiUtils {
         }
         return list
     }
+
+    fun EditorTextField.updateLanguage(language: Language, text: String? = null) {
+        val fileType = language.associatedFileType ?: StdFileTypes.PLAIN_TEXT
+        if (text == null) {
+            setFileType(fileType)
+        } else {
+            val factory = PsiFileFactory.getInstance(project)
+            val psiFile = factory.createFileFromText("Dubbo-${System.currentTimeMillis()}", language, text ?: this.text)
+            val doc = PsiDocumentManager.getInstance(project).getDocument(psiFile)
+            setNewDocumentAndFileType(fileType, doc)
+        }
+    }
+
+    fun EditorTextField.reformatEditor(text: String?) {
+        val readOnly = document.isWritable
+        if (text.isNullOrBlank()) {
+            document.setReadOnly(false)
+            setText(null)
+            document.setReadOnly(!readOnly)
+        } else {
+            WriteCommandAction.runWriteCommandAction(project) {
+                val doc = document
+                doc.setReadOnly(false)
+                doc.replaceString(0, doc.textLength, StringUtil.notNullize(text))
+                val editor = editor
+                if (editor != null) {
+                    val caretModel: CaretModel = editor.caretModel
+                    if (caretModel.offset >= doc.textLength) {
+                        caretModel.moveToOffset(doc.textLength)
+                    }
+                }
+                val psiFile = PsiDocumentManager.getInstance(project).getPsiFile(doc)
+                if (psiFile != null) {
+                    CodeStyleManager.getInstance(project).reformat(psiFile, false)
+                }
+                doc.setReadOnly(!readOnly)
+            }
+        }
+    }
+
 }

@@ -2,10 +2,13 @@ package top.shenluw.plugin.dubbo.ui;
 
 import com.intellij.ide.highlighter.HighlighterFactory;
 import com.intellij.lang.Language;
+import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.ex.EditorEx;
 import com.intellij.openapi.fileTypes.FileType;
 import com.intellij.openapi.fileTypes.StdFileTypes;
 import com.intellij.openapi.project.Project;
+import com.intellij.psi.PsiDocumentManager;
+import com.intellij.psi.PsiFile;
 import com.intellij.ui.EditorTextField;
 import com.intellij.ui.LanguageTextField;
 import org.jetbrains.annotations.NotNull;
@@ -19,7 +22,7 @@ import org.jetbrains.annotations.Nullable;
  * created: 2019/11/2 23:55
  */
 public class MyLanguageTextField extends EditorTextField {
-    private final Language myLanguage;
+    private Language myLanguage;
     private final Project myProject;
 
     public MyLanguageTextField(Language language, @Nullable Project project, @NotNull String value) {
@@ -61,5 +64,17 @@ public class MyLanguageTextField extends EditorTextField {
             }
         }
         return ex;
+    }
+
+    @Override
+    public void setNewDocumentAndFileType(@NotNull FileType fileType, Document document) {
+        super.setNewDocumentAndFileType(fileType, document);
+        Project project = getProject();
+        if (project != null && document != null) {
+            PsiFile psiFile = PsiDocumentManager.getInstance(project).getPsiFile(document);
+            if (psiFile != null) {
+                myLanguage = psiFile.getLanguage();
+            }
+        }
     }
 }

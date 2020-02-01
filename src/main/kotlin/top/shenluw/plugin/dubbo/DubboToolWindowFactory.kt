@@ -12,10 +12,11 @@ import com.intellij.openapi.wm.ToolWindowFactory
 class DubboToolWindowFactory : ToolWindowFactory {
 
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
-        StartupManager.getInstance(project)
-            .runWhenProjectIsInitialized {
+        StartupManager.getInstance(project).runWhenProjectIsInitialized {
+            StartupManager.getInstance(project).registerPostStartupActivity {
                 DubboWindowView.getInstance(project).install(project, toolWindow)
             }
+        }
     }
 }
 
