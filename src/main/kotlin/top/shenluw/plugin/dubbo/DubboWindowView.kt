@@ -12,7 +12,7 @@ import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.wm.ToolWindow
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.launch
 import org.apache.dubbo.common.URL
 import top.shenluw.plugin.dubbo.Constants.DUBBO_TEMP_RESPONSE_PREFIX
 import top.shenluw.plugin.dubbo.client.DubboListener
@@ -227,9 +227,9 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
         dubboWindowPanel?.setPanelEnableState(true)
     }
 
-    private fun connectOrDisconnect() = runBlocking {
-        val ui = dubboWindowPanel ?: return@runBlocking
-        val dubboService = dubboService ?: return@runBlocking
+    private fun connectOrDisconnect() = GlobalScope.launch {
+        val ui = dubboWindowPanel ?: return@launch
+        val dubboService = dubboService ?: return@launch
         val registry = ui.getSelectedRegistry()
         if (!registry.isNullOrBlank()) {
             ui.setPanelEnableState(false)
@@ -337,14 +337,14 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
         return emptyList()
     }
 
-    private fun refreshRegistry() = runBlocking {
-        val project = project ?: return@runBlocking
-        val ui = dubboWindowPanel ?: return@runBlocking
-        val registry = ui.getSelectedRegistry() ?: return@runBlocking
+    private fun refreshRegistry() = GlobalScope.launch {
+        val project = project ?: return@launch
+        val ui = dubboWindowPanel ?: return@launch
+        val registry = ui.getSelectedRegistry() ?: return@launch
 
         val client = dubboService?.getClient(registry)
         if (client == null || !client.connected) {
-            return@runBlocking
+            return@launch
         }
         val urls = client.getUrls()
 
