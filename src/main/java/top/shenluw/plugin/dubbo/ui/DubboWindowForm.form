@@ -170,6 +170,8 @@
                     <item value="HTML"/>
                     <item value="YAML"/>
                   </model>
+                  <selectedIndex value="4"/>
+                  <visible value="false"/>
                 </properties>
               </component>
               <component id="daa12" class="javax.swing.JButton" binding="paramsEditorOpenBtn">
