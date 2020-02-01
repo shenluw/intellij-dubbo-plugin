@@ -35,7 +35,11 @@ private val IgnoreKeyCodes = arrayOf(
     KeyEvent.VK_CAPS_LOCK,
     KeyEvent.VK_HOME,
     KeyEvent.VK_END,
-    KeyEvent.VK_WINDOWS
+    KeyEvent.VK_WINDOWS,
+    KeyEvent.VK_SHIFT,
+    KeyEvent.VK_CONTROL,
+    KeyEvent.VK_ALT,
+    KeyEvent.VK_TAB
 )
 
 class FilterableComboBox<E> : JComboBox<E>(), PlaceholderRenderer {
