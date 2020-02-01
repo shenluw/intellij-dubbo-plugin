@@ -15,12 +15,16 @@ repositories {
     mavenCentral()
 }
 
+ext {
+    dubboVersion = "2.7.4.1"
+}
+
 dependencies {
 //    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
 //    implementation 'commons-collections:commons-collections:3.2.2'
 //    implementation 'commons-net:commons-net:3.6'
 
-    implementation('org.apache.dubbo:dubbo:2.7.4.1') {
+    implementation("org.apache.dubbo:dubbo:$dubboVersion") {
         exclude group: 'org.springframework'
         exclude module: 'gson'
         exclude group: 'org.yaml'
@@ -30,11 +34,22 @@ dependencies {
     implementation('redis.clients:jedis:3.1.+') {
         exclude group: 'org.slf4j'
     }
-    implementation('org.apache.dubbo:dubbo-dependencies-zookeeper:2.7.4.1') {
+
+    implementation("com.ecwid.consul:consul-api:1.4.+"){
+        exclude module: 'gson'
+        exclude module: 'httpclient'
+        exclude module: 'httpcore'
+    }
+//    implementation("org.apache.dubbo:dubbo-registry-etcd3:$dubboVersion")
+//    implementation("org.apache.dubbo:dubbo-registry-nacos:$dubboVersion")
+//    implementation("org.apache.dubbo:dubbo-registry-sofa:$dubboVersion")
+
+    implementation("org.apache.dubbo:dubbo-dependencies-zookeeper:$dubboVersion") {
         exclude module: 'guava'
         exclude group: 'org.slf4j'
         exclude group: 'log4j'
     }
+
     testImplementation group: 'junit', name: 'junit', version: '4.12'
     testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-debug:1.3.+'
 }
