@@ -7,6 +7,7 @@ import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.project.Project
 import com.intellij.ui.AnimatedIcon.FS
 import com.intellij.ui.ClickListener
+import org.apache.commons.collections.CollectionUtils
 import top.shenluw.plugin.dubbo.UISetting
 import top.shenluw.plugin.dubbo.utils.KLogger
 import top.shenluw.plugin.dubbo.utils.UiUtils
@@ -388,6 +389,10 @@ class DubboWindowPanel : DubboWindowForm(), KLogger {
     }
 
     private fun updateComboBox(comboBox: JComboBox<String>, values: Collection<String>) {
+        if (CollectionUtils.isEqualCollection(values, comboBox.getItems())) {
+            return
+        }
+
         val current = comboBox.selectedItem as String?
         if (comboBox.itemCount > 0) {
             comboBox.removeAllItems()
