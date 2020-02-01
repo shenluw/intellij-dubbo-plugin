@@ -13,9 +13,11 @@ import com.jetbrains.rd.util.concurrentMapOf
 import org.apache.commons.codec.digest.DigestUtils
 import org.apache.dubbo.common.URL
 import org.apache.dubbo.common.constants.CommonConstants
+import top.shenluw.plugin.dubbo.client.DubboParameter
 import top.shenluw.plugin.dubbo.client.DubboRequest
 import top.shenluw.plugin.dubbo.client.DubboResponse
 import top.shenluw.plugin.dubbo.utils.DubboUtils
+import top.shenluw.plugin.dubbo.utils.KLogger
 
 
 /**
@@ -24,7 +26,7 @@ import top.shenluw.plugin.dubbo.utils.DubboUtils
  * created：2019/10/6 21:50
  */
 @State(name = "DubboStorage", storages = [Storage(Constants.DUBBO_STORAGE_FILE)])
-class DubboStorage : PersistentStateComponent<DubboStorage> {
+class DubboStorage : PersistentStateComponent<DubboStorage>, KLogger {
 
     companion object {
         private const val MAX_HISTORY = 20
@@ -113,12 +115,29 @@ class DubboStorage : PersistentStateComponent<DubboStorage> {
     /**
      * 获取最后一次调用的参数
      */
-    fun getLastInvoke(service: ServiceInfo, method: MethodInfo): InvokeHistory? {
+    fun getLastInvoke(service: ServiceInfo, method: MethodInfo): UnWrapperHistory? {
         val key = getKey(service, method)
         if (invokeHistories.size > 0) {
             for (i in invokeHistories.size - 1 downTo 0) {
                 if (invokeHistories[i].key == key) {
-                    return invokeHistories[i]
+                    val history = invokeHistories[i]
+                    var params: Array<DubboParameter>? = null
+                    if (!history.request.isNullOrBlank()) {
+                        try {
+                            params = Gson.fromJson(history.request, Array<DubboParameter>::class.java)
+                        } catch (e: Exception) {
+                            log.debug("saved value invalid")
+                        }
+                    }
+                    var response: DubboResponse? = null
+                    if (!history.response.isNullOrBlank()) {
+                        try {
+                            response = Gson.fromJson(history.response, DubboResponse::class.java)
+                        } catch (e: Exception) {
+                            log.debug("saved value invalid")
+                        }
+                    }
+                    return UnWrapperHistory(params, response)
                 }
             }
         }
@@ -154,5 +173,28 @@ class DubboStorage : PersistentStateComponent<DubboStorage> {
 
     override fun loadState(state: DubboStorage) {
         XmlSerializerUtil.copyBean(state, this)
+    }
+
+    data class UnWrapperHistory(val params: Array<DubboParameter>?, val response: DubboResponse?) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as UnWrapperHistory
+
+            if (params != null) {
+                if (other.params == null) return false
+                if (!params.contentEquals(other.params)) return false
+            } else if (other.params != null) return false
+            if (response != other.response) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = params?.contentHashCode() ?: 0
+            result = 31 * result + (response?.hashCode() ?: 0)
+            return result
+        }
     }
 }

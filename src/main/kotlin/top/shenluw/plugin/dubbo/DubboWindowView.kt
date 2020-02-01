@@ -25,6 +25,7 @@ import top.shenluw.plugin.dubbo.ui.DubboWindowPanel
 import top.shenluw.plugin.dubbo.utils.DubboUtils
 import top.shenluw.plugin.dubbo.utils.KLogger
 import top.shenluw.plugin.dubbo.utils.TempFileManager
+import top.shenluw.plugin.dubbo.utils.Texts
 import java.text.SimpleDateFormat
 
 /**
@@ -429,7 +430,7 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
             || registry.isNullOrBlank()
             || appName.isNullOrBlank()
             || interfaceName.isNullOrBlank()
-            || version.isNullOrBlank()
+            || version == null
         ) {
             ui.updateParamAreaText(null)
         } else {
@@ -446,12 +447,26 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
                 ui.updateResultAreaText(null)
             } else {
                 val history = storage.getLastInvoke(services[0], method)
-                if (history == null) {
-                    ui.updateParamAreaText(null)
+                restoreHistory(history)
+            }
+        }
+    }
+
+    private fun restoreHistory(history: DubboStorage.UnWrapperHistory?) {
+        val ui = dubboWindowPanel ?: return
+        if (history == null) {
+            ui.updateParamAreaText(null)
+            ui.updateResultAreaText(null)
+        } else {
+            ui.updateParamAreaText(Texts.convertToLanguage(ui.getOpenRequestType(), history.params))
+            val response = history.response
+            if (response == null) {
+                ui.updateResultAreaText(null)
+            } else {
+                if (response.data == null) {
                     ui.updateResultAreaText(null)
                 } else {
-                    ui.updateParamAreaText(history.request)
-                    ui.updateResultAreaText(history.response)
+                    ui.updateResultAreaText(Texts.convertToLanguage(ui.getOpenResponseType(), response.data))
                 }
             }
         }
