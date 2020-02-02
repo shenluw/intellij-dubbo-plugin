@@ -199,7 +199,7 @@
                     <item value="JSON"/>
                     <item value="XML"/>
                     <item value="HTML"/>
-                    <item value="YAML"/>
+                    <item value="yaml"/>
                   </model>
                 </properties>
               </component>
@@ -215,7 +215,7 @@
       </grid>
       <component id="f5834" class="top.shenluw.plugin.dubbo.ui.components.FilterableComboBox" binding="serverComboBox">
         <constraints>
-          <grid row="4" column="0" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="8" fill="0" indent="0" use-parent-layout="false">
+          <grid row="4" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="8" fill="0" indent="0" use-parent-layout="false">
             <minimum-size width="150" height="-1"/>
             <preferred-size width="300" height="-1"/>
             <maximum-size width="300" height="-1"/>
@@ -228,7 +228,7 @@
       </component>
       <component id="bff9c" class="top.shenluw.plugin.dubbo.ui.MyJTextField" binding="usernameField">
         <constraints>
-          <grid row="5" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="6" anchor="8" fill="0" indent="0" use-parent-layout="false">
+          <grid row="5" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="8" fill="0" indent="0" use-parent-layout="false">
             <minimum-size width="150" height="-1"/>
             <preferred-size width="300" height="-1"/>
             <maximum-size width="300" height="-1"/>
@@ -241,7 +241,7 @@
       </component>
       <component id="b9e66" class="top.shenluw.plugin.dubbo.ui.MyJTextField" binding="passwordField">
         <constraints>
-          <grid row="5" column="1" row-span="1" col-span="1" vsize-policy="0" hsize-policy="6" anchor="8" fill="0" indent="0" use-parent-layout="false">
+          <grid row="5" column="1" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="8" fill="0" indent="0" use-parent-layout="false">
             <minimum-size width="150" height="-1"/>
             <preferred-size width="300" height="-1"/>
             <maximum-size width="300" height="-1"/>
@@ -296,7 +296,7 @@
       </component>
       <component id="a59e" class="top.shenluw.plugin.dubbo.ui.components.FilterableComboBox" binding="groupComboBox">
         <constraints>
-          <grid row="4" column="1" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="8" fill="0" indent="0" use-parent-layout="false">
+          <grid row="4" column="1" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="8" fill="0" indent="0" use-parent-layout="false">
             <minimum-size width="150" height="-1"/>
             <preferred-size width="300" height="-1"/>
             <maximum-size width="300" height="-1"/>

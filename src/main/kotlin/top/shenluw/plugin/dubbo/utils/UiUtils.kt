@@ -88,14 +88,10 @@ object UiUtils {
 
     fun EditorTextField.updateLanguage(language: Language, text: String? = null) {
         val fileType = language.associatedFileType ?: StdFileTypes.PLAIN_TEXT
-        if (text == null) {
-            setFileType(fileType)
-        } else {
-            val factory = PsiFileFactory.getInstance(project)
-            val psiFile = factory.createFileFromText("Dubbo-${System.currentTimeMillis()}", language, text ?: this.text)
-            val doc = PsiDocumentManager.getInstance(project).getDocument(psiFile)
-            setNewDocumentAndFileType(fileType, doc)
-        }
+        val factory = PsiFileFactory.getInstance(project)
+        val psiFile = factory.createFileFromText("Dubbo-${System.currentTimeMillis()}", language, text ?: this.text)
+        val doc = PsiDocumentManager.getInstance(project).getDocument(psiFile)
+        setNewDocumentAndFileType(fileType, doc)
     }
 
     fun EditorTextField.reformatEditor(text: String?) {

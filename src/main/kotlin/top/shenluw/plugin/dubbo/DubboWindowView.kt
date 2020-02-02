@@ -189,10 +189,12 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
                 } else {
                     invokeLater {
                         val data = response.data
-                        if (data is String) {
-                            dubboWindowPanel?.updateResultAreaText(data)
-                        } else {
-                            dubboWindowPanel?.updateResultAreaText(PrettyGson.toJson(data))
+                        dubboWindowPanel?.run {
+                            if (data is String) {
+                                updateResultAreaText(data)
+                            } else {
+                                updateResultAreaText(Texts.convertToLanguage(getOpenResponseType(), data))
+                            }
                         }
                     }
                 }
@@ -216,13 +218,15 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
                     if (response.exception != null) {
                         dubboWindowPanel?.appendResultAreaText("${format.format(System.currentTimeMillis())}:\n${response.exception.message}\n")
                     } else {
-                        val txt = response.data?.let {
-                            if (it !is String) {
-                                return@let PrettyGson.toJson(this)
+                        dubboWindowPanel?.run {
+                            val txt = response.data?.let {
+                                if (it !is String) {
+                                    return@let Texts.convertToLanguage(getOpenResponseType(), it)
+                                }
+                                return@let it
                             }
-                            return@let it
+                            appendResultAreaText("${format.format(System.currentTimeMillis())}:\n$txt\n")
                         }
-                        dubboWindowPanel?.appendResultAreaText("${format.format(System.currentTimeMillis())}:\n$txt\n")
                     }
                 }
             }

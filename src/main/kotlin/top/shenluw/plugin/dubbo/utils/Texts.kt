@@ -1,6 +1,9 @@
 package top.shenluw.plugin.dubbo.utils
 
+import org.yaml.snakeyaml.DumperOptions
+import org.yaml.snakeyaml.Yaml
 import top.shenluw.plugin.dubbo.Constants
+import top.shenluw.plugin.dubbo.PrettyGson
 import top.shenluw.plugin.dubbo.client.DubboParameter
 
 /**
@@ -26,18 +29,33 @@ object Texts {
         return sb.toString()
     }
 
+    private val DefaultDumperOptions = DumperOptions()
+
+    init {
+        DefaultDumperOptions.defaultFlowStyle = DumperOptions.FlowStyle.BLOCK
+    }
+
     fun convertToLanguage(language: String, params: Array<DubboParameter>?): String {
-        // TODO: 2020/2/1 未实现
-        if (language == Constants.TEXT_LANGUAGE) {
+        if (params.isNullOrEmpty()) {
+            return ""
+        }
+        if (Constants.YAML_LANGUAGE.equals(language, true)) {
+            return Yaml(DefaultDumperOptions).dump(params.map { it.value })
         }
         return ""
     }
 
     fun convertToLanguage(language: String, data: Any?): String {
-        // TODO: 2020/2/1 未实现
-        if (language == Constants.TEXT_LANGUAGE) {
+        // 字符串不处理，因为不知道类型
+        if (data is String) {
+            return data
         }
-        return ""
+        if (Constants.JSON_LANGUAGE.equals(language, true)) {
+            return PrettyGson.toJson(data)
+        } else if (Constants.YAML_LANGUAGE.equals(language, true)) {
+            return Yaml(DefaultDumperOptions).dump(data)
+        }
+        return data?.toString() ?: "null"
     }
 
 }
