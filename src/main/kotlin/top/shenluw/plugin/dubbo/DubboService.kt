@@ -119,7 +119,7 @@ class DubboService(val project: Project) : Disposable, KLogger {
         }
     }
 
-    suspend fun disconnect(registry: String): Boolean {
+    suspend fun disconnect(registry: String) {
         checkDisposed()
         return suspendCoroutine { cont ->
             checkDisposed()
@@ -129,7 +129,7 @@ class DubboService(val project: Project) : Disposable, KLogger {
                     override fun run(indicator: ProgressIndicator) {
                         checkDisposed()
                         clients!![registry]?.disconnect()
-                        cont.resume(true)
+                        cont.resume(Unit)
                     }
 
                     override fun onThrowable(error: Throwable) {

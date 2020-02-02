@@ -59,7 +59,7 @@ class DubboStorage : PersistentStateComponent<DubboStorage>, KLogger {
     }
 
     fun setServices(registry: String, infos: Collection<ServiceInfo>) {
-        removeRegistry(registry)
+        removeRegistryService(registry)
         if (infos.isNotEmpty()) {
             services.addAll(infos)
         }
@@ -82,7 +82,7 @@ class DubboStorage : PersistentStateComponent<DubboStorage>, KLogger {
         registries[info.address!!] = info
     }
 
-    fun removeRegistry(registry: String, removeRegistryRecord: Boolean = false) {
+    fun removeRegistryService(registry: String, removeRegistryRecord: Boolean = false) {
         val iterator = services.iterator()
         while (iterator.hasNext()) {
             val a = iterator.next()

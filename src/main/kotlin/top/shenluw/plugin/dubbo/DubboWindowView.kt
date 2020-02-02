@@ -233,27 +233,41 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
         val dubboService = dubboService ?: return@launch
         val registry = ui.getSelectedRegistry()
         if (!registry.isNullOrBlank()) {
-            ui.setPanelEnableState(false)
             if (dubboService.isConnected(registry)) {
-                if (dubboService.disconnect(registry)) {
-                    ui.updateConnectState(registry, ConnectState.Disconnect)
-                    dubboWindowPanel?.setPanelEnableState(true)
-                }
+                handleDisconnect(registry)
             } else {
-                ui.updateConnectState(registry, ConnectState.Connecting)
-                kotlin.runCatching { dubboService.connect(registry, ui.getUsername(), ui.getPassword()) }
-                    .onSuccess { client ->
-                        if (client != null) {
-                            connectSuccess(registry, client.username, client.password)
-                        } else {
-                            connectError(registry)
-                        }
-                    }.onFailure {
-                        connectError(registry)
-                        notifyMsg("dubbo", "连接失败", INFORMATION)
-                    }
+                handleConnect(registry)
             }
         }
+    }
+
+    private suspend fun handleDisconnect(registry: String) {
+        dubboWindowPanel?.setPanelEnableState(false)
+        kotlin.runCatching { dubboService?.disconnect(registry) }
+            .onSuccess {
+                project?.run {
+                    DubboStorage.getInstance(this).removeRegistryService(registry)
+                }
+                dubboWindowPanel?.updateConnectState(registry, ConnectState.Disconnect)
+                dubboWindowPanel?.setPanelEnableState(true)
+                invokeLater { dubboWindowPanel?.resetToEmpty() }
+            }
+    }
+
+    private suspend fun handleConnect(registry: String) {
+        val ui = dubboWindowPanel ?: return
+        ui.updateConnectState(registry, ConnectState.Connecting)
+        kotlin.runCatching { dubboService?.connect(registry, ui.getUsername(), ui.getPassword()) }
+            .onSuccess { client ->
+                if (client != null) {
+                    connectSuccess(registry, client.username, client.password)
+                } else {
+                    connectError(registry)
+                }
+            }.onFailure {
+                connectError(registry)
+                notifyMsg("dubbo", "连接失败", INFORMATION)
+            }
     }
 
     private fun connectSuccess(registry: String, username: String?, password: String?) {
@@ -349,7 +363,7 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
         }
         val urls = client.getUrls()
 
-        DubboStorage.getInstance(project).removeRegistry(registry)
+        DubboStorage.getInstance(project).removeRegistryService(registry)
         DubboStorage.getInstance(project).setServices(registry, DubboUtils.getSimpleServiceInfo(registry, urls))
         updateAll()
     }
@@ -392,6 +406,7 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
                                 ui.updateMethodList(DubboUtils.getMethodKey(appName, interfaceName, services))
                             }
                         }.onFailure {
+                            invokeLater { ui.updateMethodList(emptyList()) }
                             notifyMsg("dubbo", "方法详情获取失败", INFORMATION)
                         }
                 }
@@ -485,7 +500,7 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
 
     override fun onDisconnect(registry: String) {
         project?.run {
-            DubboStorage.getInstance(this).removeRegistry(registry)
+            DubboStorage.getInstance(this).removeRegistryService(registry)
         }
         invokeLater {
             val now = dubboWindowPanel?.getSelectedRegistry()
