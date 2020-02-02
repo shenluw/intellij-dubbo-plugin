@@ -15,6 +15,9 @@ interface ParameterParser {
 
 }
 
+fun isArray(type: String?): Boolean {
+    return type != null && type.contains("[]")
+}
 
 object YamlParameterParser : ParameterParser {
 
@@ -48,6 +51,9 @@ object YamlParameterParser : ParameterParser {
         }
     }
 
+    /**
+     * Note: 集合对象内参数未做检查
+     */
     override fun parse(txt: String, argumentTypes: Array<String>): Array<DubboParameter> {
         val values = Yaml().load<List<Any?>>(txt)
 
@@ -55,13 +61,19 @@ object YamlParameterParser : ParameterParser {
             throw DubboException("解析参数错误与类型不匹配, 目标长度: ${argumentTypes.size}， 解析结果长度: ${values.size}")
         }
 
-        return Array<DubboParameter>(argumentTypes.size) {
+        return Array(argumentTypes.size) {
             val type = argumentTypes[it]
-            val value = values[it]
+            var value = values[it]
             if (value == null) {
                 DubboParameter(type, getDefaultValue(type))
             } else {
-                if (!checkType(type, value)) {
+                if (isArray(type)) {
+                    if (value is Collection<*>) {
+                        value = value.toTypedArray()
+                    } else {
+                        throw DubboException("解析参数错误与类型不匹配, 目标类型: $type, 解析结果: ${value.javaClass.simpleName}")
+                    }
+                } else if (!checkType(type, value)) {
                     throw DubboException("解析参数错误与类型不匹配, 目标类型: $type, 解析结果: ${value.javaClass.simpleName}")
                 }
                 DubboParameter(type, value)

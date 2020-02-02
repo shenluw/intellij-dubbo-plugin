@@ -157,7 +157,12 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
                 notifyMsg("dubbo", "接口调用参数缺失", WARNING)
                 return
             }
-            YamlParameterParser.parse(paramsText, argumentTypes)
+            try {
+                YamlParameterParser.parse(paramsText, argumentTypes)
+            } catch (e: Exception) {
+                notifyMsg("dubbo", e.message ?: "参数解析错误", WARNING)
+                return
+            }
         }
         ui.setPanelEnableState(false)
 
