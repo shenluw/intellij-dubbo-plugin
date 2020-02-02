@@ -35,7 +35,7 @@
     </div>
     ]]></description>
 
-    <idea-version since-build="171"/>
+    <idea-version since-build="192"/>
 
     <depends>com.intellij.java</depends>
     <depends>org.jetbrains.plugins.yaml</depends>

@@ -62,7 +62,7 @@ intellij {
 }
 
 patchPluginXml {
-    sinceBuild 171
+    sinceBuild 192
     untilBuild null
 }
 
