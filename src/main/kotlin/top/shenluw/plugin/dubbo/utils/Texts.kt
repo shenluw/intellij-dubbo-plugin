@@ -1,5 +1,8 @@
 package top.shenluw.plugin.dubbo.utils
 
+import top.shenluw.plugin.dubbo.Constants
+import top.shenluw.plugin.dubbo.client.DubboParameter
+
 /**
  * @author Shenluw
  * created：2019/10/4 21:40
@@ -22,4 +25,19 @@ object Texts {
         }
         return sb.toString()
     }
+
+    fun convertToLanguage(language: String, params: Array<DubboParameter>?): String {
+        // TODO: 2020/2/1 未实现
+        if (language == Constants.TEXT_LANGUAGE) {
+        }
+        return ""
+    }
+
+    fun convertToLanguage(language: String, data: Any?): String {
+        // TODO: 2020/2/1 未实现
+        if (language == Constants.TEXT_LANGUAGE) {
+        }
+        return ""
+    }
+
 }
