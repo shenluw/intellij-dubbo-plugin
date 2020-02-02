@@ -169,8 +169,10 @@ class DubboClientImpl(
         if (client != null) {
             return client
         }
+        client = DubboTelnetClientImpl(telnetAddress)
+        dubboTelnetClients[address] = client
         return suspendCancellableCoroutine { ctx ->
-            client = DubboTelnetClientImpl(telnetAddress, object : DubboListener {
+            client.listener = object : DubboListener {
                 override fun onConnectError(address: String, exception: Exception?) {
                     dubboTelnetClients.remove(telnetAddress)
                     ctx.resumeWithException(exception!!)
@@ -181,11 +183,10 @@ class DubboClientImpl(
                 }
 
                 override fun onConnect(address: String, username: String?, password: String?) {
-                    dubboTelnetClients[address] = client!!
                     ctx.resume(client)
                 }
-            })
-            client!!.connect()
+            }
+            client.connect()
         }
     }
 

@@ -43,7 +43,7 @@ abstract class AbstractDubboClient(
 
     protected open fun onConnectError(msg: String?, e: Exception) {
         log.warn("connect fail", e)
-        listener?.onConnectError(address!!, e)
+        listener?.onConnectError(address, e)
     }
 
     protected abstract fun doConnect()
