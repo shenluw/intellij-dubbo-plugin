@@ -37,6 +37,9 @@
 
     <idea-version since-build="171"/>
 
+    <depends>com.intellij.java</depends>
+    <depends>org.jetbrains.plugins.yaml</depends>
+
     <extensions defaultExtensionNs="com.intellij">
 
         <projectService serviceImplementation="top.shenluw.plugin.dubbo.DubboWindowView"/>
@@ -46,7 +49,7 @@
         <toolWindow id="Dubbo"
                     icon="/icons/dubbo.jpg"
                     anchor="right"
-                    secondary="false"
+                    secondary="true"
                     factoryClass="top.shenluw.plugin.dubbo.DubboToolWindowFactory"
 
         >
