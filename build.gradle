@@ -7,7 +7,7 @@ plugins {
 }
 
 group 'top.shenluw.intellij'
-version '0.1.0'
+version '0.1.1'
 
 sourceCompatibility = 1.8
 
@@ -65,6 +65,11 @@ patchPluginXml {
     sinceBuild 192
     untilBuild null
 }
+
+publishPlugin {
+    token intellijPublishToken
+}
+
 
 compileKotlin {
     kotlinOptions.jvmTarget = "1.8"

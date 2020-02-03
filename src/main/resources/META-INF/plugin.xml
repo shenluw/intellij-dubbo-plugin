@@ -5,34 +5,19 @@
 
     <description><![CDATA[
      <h1>dubbo-plug</h1>
-    <p>
-        <a href="https://996.icu">
-            <img src="https://img.shields.io/badge/link-996.icu-red.svg" alt="996.icu">
-        </a>
-        <a href="https://github.com/996icu/996.ICU/blob/master/LICENSE">
-            <img src="https://img.shields.io/badge/license-Anti%20996-blue.svg" alt="LICENSE">
-        </a>
-    </p>
-    <p>dubbo 接口调试插件</p>
-    <p>功能：</p>
+    <p>the dubbo interface debugging plug-in</p>
+    <p>Features：</p>
     <ul>
         <li>
-            <p>连接注册中心，获取服务信息</p>
-            <p>当前支持 redis, zookeeper, consul</p>
-            <p>例如: redis://127.0.0.1:6379?timeout=30000</p>
+            <p>Connect to the registry and get service information</p>
+            <p>Support redis, zookeeper, consul</p>
+            <p>Example: redis://127.0.0.1:6379?timeout=30000</p>
         </li>
         <li>
-            <p>服务接口调用，并发测试</p>
+            <p>Service interface calls, concurrent testing</p>
         </li>
     </ul>
-    <p>方法参数填写：</p>
-    <div>
-        <pre>
-            <span>接口需要的参数使用yaml语法进行填充</span>
-            <span>yaml 一个根对象代表接口需要的一个参数</span>
-            <span>如果参数为复杂bean，按照yaml语法创建对象即可</span>
-        </pre>
-    </div>
+    <p>Parameter rules：Use yaml syntax. <a href="https://github.com/shenluw/intellij-dubbo-plugin/blob/master/README.md">Learn more</a></p>
     ]]></description>
 
     <idea-version since-build="192"/>
