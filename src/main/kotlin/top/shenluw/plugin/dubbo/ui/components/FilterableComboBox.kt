@@ -42,12 +42,17 @@ private val IgnoreKeyCodes = arrayOf(
     KeyEvent.VK_TAB
 )
 
+private val CompositeKeys = arrayOf(KeyEvent.VK_CONTROL, KeyEvent.VK_ALT)
+
+
 class FilterableComboBox<E> : JComboBox<E>(), PlaceholderRenderer {
     private var keyword: String? = null
 
     init {
         val tc = editor.editorComponent as JTextComponent
         tc.addKeyListener(object : KeyAdapter() {
+
+            private var pressedKeyCode: Int? = null
 
             fun restoreCaretPosition(position: Int) {
                 val doc = tc.document
@@ -56,7 +61,7 @@ class FilterableComboBox<E> : JComboBox<E>(), PlaceholderRenderer {
                 }
             }
 
-            fun pass(e: KeyEvent): Boolean {
+            fun pass(e: KeyEvent, pressedKeyCode: Int?): Boolean {
                 val code = e.keyCode
                 if (code >= KeyEvent.VK_F1 && code <= KeyEvent.VK_F12) {
                     return true
@@ -64,7 +69,26 @@ class FilterableComboBox<E> : JComboBox<E>(), PlaceholderRenderer {
                 if (code >= KeyEvent.VK_F13 && code <= KeyEvent.VK_F24) {
                     return true
                 }
-                return code in IgnoreKeyCodes
+                if (code in IgnoreKeyCodes) {
+                    return true
+                }
+                return isCompositeAction(e, pressedKeyCode)
+            }
+
+            /**
+             * 判断是否是ctrl + c 这些组合键
+             */
+            fun isCompositeAction(e: KeyEvent, pressedKeyCode: Int?): Boolean {
+                return pressedKeyCode != null && e.keyCode != pressedKeyCode
+            }
+
+            override fun keyPressed(e: KeyEvent) {
+                if (!isEditable) {
+                    return
+                }
+                if (pressedKeyCode == null && e.keyCode in CompositeKeys) {
+                    pressedKeyCode = e.keyCode
+                }
             }
 
             override fun keyReleased(e: KeyEvent) {
@@ -72,6 +96,11 @@ class FilterableComboBox<E> : JComboBox<E>(), PlaceholderRenderer {
                     return
                 }
                 val code = e.keyCode
+                val tmpCode = pressedKeyCode
+                if (code in CompositeKeys) {
+                    pressedKeyCode = null
+                }
+
                 if (code == KeyEvent.VK_ENTER) {
                     if (keyword.isNullOrEmpty()) {
                         return
@@ -83,7 +112,7 @@ class FilterableComboBox<E> : JComboBox<E>(), PlaceholderRenderer {
                     }
                     return
                 }
-                if (pass(e)) {
+                if (pass(e, tmpCode)) {
                     return
                 }
                 val p = tc.caretPosition
