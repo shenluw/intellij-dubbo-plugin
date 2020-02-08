@@ -1,5 +1,6 @@
 package top.shenluw.plugin.dubbo
 
+import com.google.common.collect.Queues
 import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.ServiceManager
 import com.intellij.openapi.components.State
@@ -38,7 +39,7 @@ class DubboStorage : PersistentStateComponent<DubboStorage>, KLogger {
 
     /* 由于第一次连接dubbo时会收到全量通知，所以不需要存储，这里只作为缓存 */
     @Transient
-    private val services = hashSetOf<ServiceInfo>()
+    private val services = Queues.newConcurrentLinkedQueue<ServiceInfo>()
     @MapAnnotation
     val registries = concurrentMapOf<String, RegistryInfo>()
 
@@ -66,16 +67,17 @@ class DubboStorage : PersistentStateComponent<DubboStorage>, KLogger {
     }
 
     fun addServices(infos: Collection<ServiceInfo>) {
-        infos.forEach { info ->
-            val iter = services.iterator()
-            if (iter.hasNext()) {
-                val m = iter.next()
+        val iter = services.iterator()
+        while (iter.hasNext()) {
+            val m = iter.next()
+            infos.forEach { info ->
                 if (m.address == info.address && info.interfaceName == m.interfaceName) {
                     iter.remove()
+                    return@forEach
                 }
             }
-            services.add(info)
         }
+        services.addAll(infos)
     }
 
     fun addRegistry(info: RegistryInfo) {
