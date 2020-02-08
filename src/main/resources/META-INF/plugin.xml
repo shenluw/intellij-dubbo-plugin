@@ -26,6 +26,7 @@
     <depends>org.jetbrains.plugins.yaml</depends>
 
     <extensions defaultExtensionNs="com.intellij">
+        <applicationInitializedListener implementation="top.shenluw.plugin.dubbo.MyApplicationInitializedListener"/>
 
         <projectService serviceImplementation="top.shenluw.plugin.dubbo.DubboWindowView"/>
         <projectService serviceImplementation="top.shenluw.plugin.dubbo.DubboStorage"/>

@@ -1,8 +1,11 @@
 package top.shenluw.plugin.dubbo
 
 import com.google.gson.GsonBuilder
+import com.intellij.ide.ApplicationInitializedListener
 import com.intellij.notification.*
 import com.intellij.openapi.application.ApplicationManager
+import org.apache.dubbo.common.logger.Level
+import org.apache.dubbo.common.logger.LoggerFactory
 
 /**
  * @author Shenluw
@@ -20,8 +23,6 @@ inline fun notifyMsg(
     type: NotificationType = NotificationType.INFORMATION,
     listener: NotificationListener? = null
 ) {
-    Applications.configNotify()
-
     Notifications.Bus.notify(
         Notification(PLUGIN_ID, title, msg, type, listener)
     )
@@ -43,13 +44,12 @@ inline fun invokeLater(runnable: Runnable) {
     }
 }
 
-class Applications {
-    companion object {
-        init {
-            NotificationsConfiguration.getNotificationsConfiguration()
-                .changeSettings(PLUGIN_ID, NotificationDisplayType.NONE, true, false)
-        }
 
-        inline fun configNotify() {}
+class MyApplicationInitializedListener : ApplicationInitializedListener {
+    override fun componentsInitialized() {
+        NotificationsConfiguration.getNotificationsConfiguration()
+            .changeSettings(PLUGIN_ID, NotificationDisplayType.NONE, true, false)
+
+        LoggerFactory.setLevel(Level.WARN)
     }
 }
