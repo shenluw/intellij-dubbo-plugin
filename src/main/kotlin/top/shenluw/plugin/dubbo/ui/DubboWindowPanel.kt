@@ -7,6 +7,7 @@ import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.project.Project
 import com.intellij.ui.AnimatedIcon.FS
 import com.intellij.ui.ClickListener
+import com.intellij.util.castSafelyTo
 import org.apache.commons.collections.CollectionUtils
 import top.shenluw.plugin.dubbo.Constants
 import top.shenluw.plugin.dubbo.UISetting
@@ -202,7 +203,9 @@ class DubboWindowPanel : DubboWindowForm(), KLogger {
         }
         val itemListener = ItemListener { e ->
             if (e?.stateChange == ItemEvent.SELECTED) {
-                handler.invoke(e.item as String)
+                if (!ItemChangedTransaction.isBegin(e.source)) {
+                    handler.invoke(e.item as String)
+                }
             }
         }
         listenerMap[this] = itemListener
@@ -403,6 +406,9 @@ class DubboWindowPanel : DubboWindowForm(), KLogger {
         }
 
         val current = comboBox.selectedItem as String?
+
+        ItemChangedTransaction.begin(comboBox)
+
         if (comboBox.itemCount > 0) {
             comboBox.removeAllItems()
         }
@@ -414,6 +420,15 @@ class DubboWindowPanel : DubboWindowForm(), KLogger {
             comboBox.selectedItem = current
         } else {
             comboBox.selectedIndex = 0
+        }
+        ItemChangedTransaction.commit(comboBox)
+        val new = comboBox.selectedItem
+        if (new != current) {
+            val listener = listenerMap[comboBox]
+            val action = if (new == null) ItemEvent.DESELECTED else ItemEvent.SELECTED
+            listener?.castSafelyTo<ItemListener>()?.itemStateChanged(
+                ItemEvent(comboBox, 0, new, action)
+            )
         }
     }
 
