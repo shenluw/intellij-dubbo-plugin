@@ -19,6 +19,8 @@ import top.shenluw.plugin.dubbo.client.DubboRequest
 import top.shenluw.plugin.dubbo.client.DubboResponse
 import top.shenluw.plugin.dubbo.utils.DubboUtils
 import top.shenluw.plugin.dubbo.utils.KLogger
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 
 /**
@@ -47,6 +49,12 @@ class DubboStorage : PersistentStateComponent<DubboStorage>, KLogger {
     val invokeHistories = mutableListOf<InvokeHistory>()
 
     var lastConnectRegistry: String? = null
+
+    private val lock = ReentrantLock()
+
+    fun <T> withLock(block: (DubboStorage) -> T): T = lock.withLock {
+        block.invoke(this)
+    }
 
     fun getServices(registry: String, appName: String? = null, interfaceName: String? = null): List<ServiceInfo>? {
         var tmp = services.filter { info -> info.registry == registry }
@@ -97,7 +105,9 @@ class DubboStorage : PersistentStateComponent<DubboStorage>, KLogger {
         }
     }
 
-    fun removeByURL(registry: String, urls: List<URL>) {
+    fun removeByURL(registry: String, urls: List<URL>): Collection<ServiceInfo> {
+        val removes = arrayListOf<ServiceInfo>()
+
         val iterator = services.iterator()
         while (iterator.hasNext()) {
             val a = iterator.next()
@@ -108,10 +118,12 @@ class DubboStorage : PersistentStateComponent<DubboStorage>, KLogger {
                             ""
                         ) == a.appName && a.interfaceName == it.serviceInterface
                     } != null) {
+                    removes.add(a)
                     iterator.remove()
                 }
             }
         }
+        return removes
     }
 
     /**

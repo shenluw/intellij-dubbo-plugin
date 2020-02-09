@@ -367,7 +367,7 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
 
         DubboStorage.getInstance(project).removeRegistryService(registry)
         DubboStorage.getInstance(project).setServices(registry, DubboUtils.getSimpleServiceInfo(registry, urls))
-        updateAll()
+        invokeLater { updateAll() }
     }
 
     private fun updateApplication(infos: List<ServiceInfo>) {
@@ -514,35 +514,52 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
         }
     }
 
-    override fun onUrlChanged(registry: String, urls: List<URL>, state: URLState) {
-        val project = project ?: return
-        val selectedRegistry = dubboWindowPanel?.getSelectedRegistry()
+    /**
+     * 返回数据变化的内容
+     */
+    private fun updateStorage(registry: String, urls: List<URL>, state: URLState): Collection<ServiceInfo> {
+        val project = project ?: return emptyList()
+        return DubboStorage.getInstance(project).withLock { storage ->
+            // 只要存在变化就移除缓存
+            var removes = storage.removeByURL(registry, urls)
 
-        val storage = DubboStorage.getInstance(project)
-        // 只要存在变化就移除缓存
-        storage.removeByURL(registry, urls)
-
-        var updateUi = false
-        if (state == URLState.ADD || state == URLState.UPDATE) {
-            val infos = DubboUtils.getSimpleServiceInfo(registry, urls)
-            val selectedApplication = dubboWindowPanel?.getSelectedApplication()
-            //  区分出同一个application
-            if (selectedApplication.isNullOrBlank()) {
-                updateUi = true
-            } else {
-                for (info in infos) {
-                    if (info.appName == selectedApplication) {
-                        updateUi = true
-                        break
-                    }
-                }
+            if (state == URLState.ADD || state == URLState.UPDATE) {
+                val infos = DubboUtils.getSimpleServiceInfo(registry, urls)
+                storage.addServices(infos)
+                return@withLock infos
             }
-            storage.addServices(infos)
+            return@withLock removes
+        }
+    }
+
+    override fun onUrlChanged(registry: String, urls: List<URL>, state: URLState) {
+        val infos = updateStorage(registry, urls, state)
+
+        if (infos.isEmpty()) {
+            return
         }
 
+        val project = project ?: return
+
+        var updateUi = false
+
+        val selectedApplication = dubboWindowPanel?.getSelectedApplication()
+        //  区分出同一个application
+        if (selectedApplication.isNullOrBlank()) {
+            updateUi = true
+        } else {
+            for (info in infos) {
+                if (info.appName == selectedApplication) {
+                    updateUi = true
+                    break
+                }
+            }
+        }
+
+        val selectedRegistry = dubboWindowPanel?.getSelectedRegistry()
         if (updateUi && selectedRegistry == registry) {
             invokeLater {
-                val services = storage.getServices(registry) ?: emptyList()
+                val services = DubboStorage.getInstance(project).getServices(registry) ?: emptyList()
                 updateApplication(services)
                 updateInterface(services)
                 updateMisc(services)
