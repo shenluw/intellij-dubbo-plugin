@@ -6,7 +6,6 @@ import com.intellij.openapi.Disposable
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.Task.Backgroundable
 import com.intellij.openapi.project.Project
-import com.jetbrains.rd.util.Date
 import com.jetbrains.rd.util.concurrentMapOf
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -50,16 +49,20 @@ class DubboService(val project: Project) : Disposable, KLogger {
     }
 
     fun isConnected(registry: String): Boolean {
+        return getConnectState(registry) == ConnectState.Connected
+    }
+
+    fun getConnectState(registry: String): ConnectState? {
         checkDisposed()
-        val client = clients!![registry] ?: return false
-        return client.connected
+        val client = clients!![registry] ?: return null
+        return client.connectState
     }
 
     private fun getOrThrowClient(registry: String): DubboClient {
         val client = clients!![registry]
         if (client == null) {
             throw DubboClientException("Dubbo 客户端不存在")
-        } else if (!client.connected) {
+        } else if (!client.isConnected()) {
             throw DubboClientException("Dubbo 客户端未连接")
         }
         return client
@@ -69,7 +72,7 @@ class DubboService(val project: Project) : Disposable, KLogger {
         checkDisposed()
         var client = clients!![registry]
         if (client != null) {
-            return if (client.connected) {
+            return if (client.isConnected()) {
                 log.debug("already connect ", registry)
                 client
             } else {
@@ -83,32 +86,26 @@ class DubboService(val project: Project) : Disposable, KLogger {
                 override fun doRun(indicator: ProgressIndicator) {
                     checkDisposed()
                     indicator.text = "connect $registry"
-                    try {
-                        DubboUtils.replaceClassLoader()
-                        client =
-                            DubboClientImpl(registry, username, password, DubboListenerWrapper(object : DubboListener {
-                                override fun onConnect(address: String, username: String?, password: String?) {
-                                    checkDisposed()
-                                    clients?.put(address, client!!)
-                                    ctx.resume(client)
-                                }
+                    client = DubboClientImpl(registry, username, password, DubboListenerWrapper(object : DubboListener {
+                        override fun onConnect(address: String, username: String?, password: String?) {
+                            checkDisposed()
+                            clients?.put(address, client!!)
+                            ctx.resume(client)
+                        }
 
-                                override fun onConnectError(address: String, exception: Exception?) {
-                                    checkDisposed()
-                                    ctx.resumeWithException(DubboClientException("连接失败", exception))
-                                }
-                            }))
-                        clients?.put(registry, client!!)
-                        client!!.connect()
-                    } finally {
-                        DubboUtils.replaceClassLoader()
-                    }
+                        override fun onConnectError(address: String, exception: Exception?) {
+                            checkDisposed()
+                            ctx.resumeWithException(DubboClientException("连接失败: ${exception?.message}", exception))
+                        }
+                    }))
+                    clients?.put(registry, client!!)
+                    client!!.connect()
                     indicator.text = "连接成功"
                 }
 
                 override fun onThrowable(error: Throwable) {
                     clients?.remove(registry)
-                    ctx.resumeWithException(DubboClientException("连接失败", error))
+                    ctx.resumeWithException(DubboClientException("连接失败: ${error.message}", error))
                 }
 
                 override fun onCancel() {
@@ -354,7 +351,6 @@ private class ThreadPoolCache {
     init {
         executor?.scheduleAtFixedRate({
             cache?.cleanUp()
-            println("run clean ${Date()}")
         }, 5 * 60 + 1, 5 * 60 + 1, TimeUnit.SECONDS)
     }
 

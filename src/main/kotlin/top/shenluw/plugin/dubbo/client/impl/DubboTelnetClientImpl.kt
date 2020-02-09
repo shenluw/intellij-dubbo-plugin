@@ -78,7 +78,7 @@ class DubboTelnetClientImpl(
     }
 
     override fun getServiceMethods(url: URL): List<MethodInfo> {
-        if (!connected) {
+        if (!isConnected()) {
             throw DubboClientException("telnet not connect")
         }
         val interfaceName = url.serviceInterface
@@ -101,7 +101,7 @@ class DubboTelnetClientImpl(
 
 
     override fun invoke(request: DubboRequest): DubboResponse {
-        if (!connected) {
+        if (!isConnected()) {
             return DubboResponse(null, emptyMap(), DubboClientException("client not connect"))
         }
 
@@ -146,7 +146,7 @@ class DubboTelnetClientImpl(
     }
 
     private fun sendCommand(cmd: String): String? {
-        if (!connected) {
+        if (!isConnected()) {
             throw DubboClientException("telnet not connect")
         }
         try {

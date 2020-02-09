@@ -10,6 +10,7 @@ import com.intellij.ui.ClickListener
 import org.apache.commons.collections.CollectionUtils
 import top.shenluw.plugin.dubbo.Constants
 import top.shenluw.plugin.dubbo.UISetting
+import top.shenluw.plugin.dubbo.client.ConnectState
 import top.shenluw.plugin.dubbo.utils.KLogger
 import top.shenluw.plugin.dubbo.utils.UiUtils
 import top.shenluw.plugin.dubbo.utils.UiUtils.getItems
@@ -48,9 +49,9 @@ class DubboWindowPanel : DubboWindowForm(), KLogger {
             if (it.stateChange == ItemEvent.SELECTED) {
                 val address = getSelectedRegistry()
                 if (address.isNullOrBlank()) {
-                    updateConnectState(EMPTY_ADDRESS, ConnectState.Disconnect)
+                    updateConnectState(EMPTY_ADDRESS, ConnectState.Idle)
                 } else {
-                    val state = connectState.getOrDefault(address, ConnectState.Disconnect)
+                    val state = connectState.getOrDefault(address, ConnectState.Idle)
                     updateConnectState(address, state)
                 }
             }
@@ -58,6 +59,8 @@ class DubboWindowPanel : DubboWindowForm(), KLogger {
         specialCheckBox.addChangeListener {
             updateSpecialOption(specialCheckBox.isSelected)
         }
+        updateSpecialOption(false)
+
         registries.addAll(registryComboBox.getItems())
 
         UiUtils.setEditorNumericType(threadGroupCountComboBox)
@@ -284,7 +287,7 @@ class DubboWindowPanel : DubboWindowForm(), KLogger {
     fun updateConnectState(registry: String, state: ConnectState) {
         connectState[registry] = state
         when (state) {
-            ConnectState.Disconnect -> {
+            ConnectState.Idle -> {
                 connectBtn.icon = AllIcons.Actions.Execute
                 refreshBtn.isEnabled = false
                 connectBtn.isEnabled = true
@@ -294,10 +297,13 @@ class DubboWindowPanel : DubboWindowForm(), KLogger {
                 refreshBtn.isEnabled = true
                 connectBtn.isEnabled = true
             }
-            else -> {
+            ConnectState.Connecting -> {
                 connectBtn.icon = REFRESH_ICON
                 refreshBtn.isEnabled = false
                 connectBtn.isEnabled = false
+            }
+            else -> {
+                log.info("not support state: $state")
             }
         }
     }
@@ -313,7 +319,7 @@ class DubboWindowPanel : DubboWindowForm(), KLogger {
             connectBtn.isEnabled = enable
         } else {
             if (enable) {
-                val state = connectState.getOrDefault(registry, ConnectState.Disconnect)
+                val state = connectState.getOrDefault(registry, ConnectState.Idle)
                 updateConnectState(registry, state)
             } else {
                 refreshBtn.isEnabled = false
@@ -459,8 +465,4 @@ class DubboWindowPanel : DubboWindowForm(), KLogger {
         groupComboBox.isVisible = visible
         serverComboBox.isVisible = visible
     }
-}
-
-enum class ConnectState {
-    Disconnect, Connecting, Connected
 }

@@ -1,5 +1,6 @@
 package top.shenluw.plugin.dubbo.client.impl
 
+import top.shenluw.plugin.dubbo.client.ConnectState
 import top.shenluw.plugin.dubbo.client.DubboClient
 import top.shenluw.plugin.dubbo.client.DubboListener
 import top.shenluw.plugin.dubbo.utils.KLogger
@@ -16,30 +17,30 @@ abstract class AbstractDubboClient(
 ) :
     DubboClient,
     KLogger {
-    @Volatile
-    private var connecting = false
-    @Volatile
-    override var connected = false
 
-    override fun connect() {
-        if (connecting || connected) {
-            return
+    @Volatile
+    override var connectState = ConnectState.Idle
+
+    override fun connect(): Boolean {
+        if (connectState == ConnectState.Connecting) {
+            return false
         }
-        connecting = true
-        prepareConnect()
+        if (isConnected()) {
+            return true
+        }
+        connectState = ConnectState.Connecting
 
-        try {
+        return try {
             doConnect()
-            connected = true
+            connectState = ConnectState.Connected
             listener?.onConnect(address, username, password)
+            true
         } catch (e: Exception) {
             onConnectError(null, e)
-        } finally {
-            connecting = false
+            connectState = ConnectState.Idle
+            false
         }
     }
-
-    protected open fun prepareConnect() {}
 
     protected open fun onConnectError(msg: String?, e: Exception) {
         log.warn("connect fail", e)
@@ -51,31 +52,9 @@ abstract class AbstractDubboClient(
     protected abstract fun doDisconnect()
 
     override fun disconnect() {
-        if (!connected || connecting) return
+        if (!isConnected() || isConnecting()) return
         doDisconnect()
-        this.connecting = false
-        this.connected = false
+        this.connectState = ConnectState.Idle
         listener?.onDisconnect(address)
-    }
-
-    override fun refresh() {
-        if (this.connecting) {
-            return
-        }
-        if (!connected) {
-            return
-        }
-        disconnect()
-
-        try {
-            connecting = true
-            doConnect()
-            connected = true
-            listener?.onConnect(address, username, password)
-        } catch (e: Exception) {
-            onConnectError(null, e)
-        } finally {
-            connecting = false
-        }
     }
 }

@@ -1,5 +1,6 @@
 package top.shenluw.plugin.dubbo.client.impl
 
+import com.google.common.base.Stopwatch
 import com.jetbrains.rd.util.concurrentMapOf
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -13,7 +14,6 @@ import org.apache.dubbo.common.extension.ExtensionLoader
 import org.apache.dubbo.common.utils.NetUtils
 import org.apache.dubbo.config.ApplicationConfig
 import org.apache.dubbo.config.ReferenceConfig
-import org.apache.dubbo.config.RegistryConfig
 import org.apache.dubbo.config.builders.ApplicationBuilder
 import org.apache.dubbo.config.builders.ReferenceBuilder
 import org.apache.dubbo.config.builders.RegistryBuilder
@@ -30,9 +30,10 @@ import top.shenluw.plugin.dubbo.MethodInfo
 import top.shenluw.plugin.dubbo.client.*
 import top.shenluw.plugin.dubbo.utils.KLogger
 import java.util.Collections.unmodifiableList
+import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-
 
 class DubboClientImpl(
     address: String,
@@ -41,8 +42,9 @@ class DubboClientImpl(
     listener: DubboListener? = null
 ) : AbstractDubboClient(address, username, password, listener), KLogger,
     DubboConcurrentClient, NotifyListener {
+
     private val DUBBO_NAME = "DubboPlugin"
-    private val DEFAULT_TIMEOUT_MS = 30 * 1000
+    private val DEFAULT_TIMEOUT_MS = 30 * 1000L
 
     private val SUBSCRIBE = URL(
         DUBBO_NAME, NetUtils.getLocalHost(),
@@ -61,7 +63,6 @@ class DubboClientImpl(
     )
 
     private var applicationConfig: ApplicationConfig? = null
-    private var registryConfig: RegistryConfig? = null
 
     private var registryURL: URL? = null
     private var registry: Registry? = null
@@ -73,10 +74,7 @@ class DubboClientImpl(
      */
     private var registryCache: MutableMap<String, MutableList<URL>> = hashMapOf()
 
-    /* 保证url变化通知必需在连接状态成功=true之后 */
-    private var delayNotifyUrls = arrayListOf<List<URL>>()
-
-    override fun prepareConnect() {
+    private fun prepareConnect() {
         registryURL = URL.valueOf(address)
             .setUsername(username)
             .setPassword(password)
@@ -84,7 +82,7 @@ class DubboClientImpl(
         if (!registryURL!!.hasParameter(TIMEOUT_KEY)) {
             registryURL = registryURL?.addParameter(TIMEOUT_KEY, DEFAULT_TIMEOUT_MS)
         }
-        registryConfig = RegistryBuilder()
+        val registryConfig = RegistryBuilder()
             .address(registryURL?.address)
             .protocol(registryURL?.protocol)
             .port(registryURL?.port)
@@ -100,38 +98,49 @@ class DubboClientImpl(
     }
 
     override fun doConnect() {
+        prepareConnect()
+
         val registryFactory = ExtensionLoader.getExtensionLoader(RegistryFactory::class.java).adaptiveExtension
         registry = registryFactory.getRegistry(registryURL)
-        registry?.subscribe(SUBSCRIBE, this)
-
         registry?.takeUnless { it.isAvailable }?.run {
-            this.destroy()
-            cleanDubboCache()
-
+            destroyRegistry()
             throw DubboClientException("connect error")
         }
 
-    }
-
-    override fun connect() {
-        super.connect()
-        if (delayNotifyUrls.isNotEmpty()) {
-            delayNotifyUrls.forEach {
-                notify(it)
+        thread(true) {
+            val stopwatch = Stopwatch.createStarted()
+            try {
+                log.debug("subscribe start")
+                registry?.subscribe(SUBSCRIBE, this)
+            } catch (e: Exception) {
+                log.warn("subscribe error", e)
+            } finally {
+                log.debug("subscribe end ", stopwatch.stop().elapsed(TimeUnit.SECONDS))
             }
-            delayNotifyUrls.clear()
         }
     }
 
-    override fun doDisconnect() {
+    private fun destroyRegistry() {
         this.registry?.takeIf { it.isAvailable }?.run {
-            this.destroy()
+            try {
+                this.destroy()
+            } catch (e: Exception) {
+                log.warn("destroy error", e)
+            }
 
             cleanDubboCache()
         }
         this.registry = null
+    }
+
+    override fun doDisconnect() {
+        destroyRegistry()
         registryCache.clear()
-        delayNotifyUrls.clear()
+    }
+
+    override fun onConnectError(msg: String?, e: Exception) {
+        doDisconnect()
+        super.onConnectError(msg, e)
     }
 
     /**
@@ -170,7 +179,7 @@ class DubboClientImpl(
             return client
         }
         client = DubboTelnetClientImpl(telnetAddress)
-        dubboTelnetClients[address] = client
+        dubboTelnetClients[telnetAddress] = client
         return suspendCancellableCoroutine { ctx ->
             client.listener = object : DubboListener {
                 override fun onConnectError(address: String, exception: Exception?) {
@@ -186,10 +195,12 @@ class DubboClientImpl(
                     ctx.resume(client)
                 }
             }
+            log.debug("connect telnet $telnetAddress")
             client.connect()
         }
     }
 
+    @Synchronized
     override fun getServiceMethods(url: URL): List<MethodInfo> {
         val key = url.toFullString()
 
@@ -200,16 +211,16 @@ class DubboClientImpl(
         return runBlocking {
             val client = getTelnetClient("${url.host}:${url.port}")
                 ?: throw DubboClientException("telnet can not connect")
-            if (!client.connected) {
+            if (!client.isConnected()) {
                 var index = 0
                 // 如果没有连接，阻塞3秒 再次判断状态
                 while (index++ < 3) {
                     delay(1000)
-                    if (client.connected) {
+                    if (client.isConnected()) {
                         break
                     }
                 }
-                if (!client.connected) {
+                if (!client.isConnected()) {
                     throw DubboClientException("telnet can not connect")
                 }
             }
@@ -229,7 +240,7 @@ class DubboClientImpl(
     }
 
     override fun invoke(request: DubboRequest): DubboResponse {
-        if (!connected) {
+        if (!isConnected()) {
             return DubboResponse(null, emptyMap(), DubboClientException("client not connect"))
         }
         var result: Any? = null
@@ -287,13 +298,8 @@ class DubboClientImpl(
         if (urls.isNullOrEmpty()) {
             return
         }
-        if (!connected) {
-            delayNotifyUrls.add(urls)
-            return
-        }
 
         group(urls).forEach { (key, us) ->
-            log.debug("urls: ", us)
             var cached = registryCache.getOrDefault(key, null)
             val isAdd = cached == null
 

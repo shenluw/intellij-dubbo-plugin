@@ -15,12 +15,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import org.apache.dubbo.common.URL
 import top.shenluw.plugin.dubbo.Constants.DUBBO_TEMP_RESPONSE_PREFIX
-import top.shenluw.plugin.dubbo.client.DubboListener
-import top.shenluw.plugin.dubbo.client.DubboParameter
-import top.shenluw.plugin.dubbo.client.DubboRequest
-import top.shenluw.plugin.dubbo.client.URLState
+import top.shenluw.plugin.dubbo.client.*
 import top.shenluw.plugin.dubbo.parameter.YamlParameterParser
-import top.shenluw.plugin.dubbo.ui.ConnectState
 import top.shenluw.plugin.dubbo.ui.DubboWindowPanel
 import top.shenluw.plugin.dubbo.utils.DubboUtils
 import top.shenluw.plugin.dubbo.utils.KLogger
@@ -257,7 +253,7 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
                 project?.run {
                     DubboStorage.getInstance(this).removeRegistryService(registry)
                 }
-                dubboWindowPanel?.updateConnectState(registry, ConnectState.Disconnect)
+                dubboWindowPanel?.updateConnectState(registry, ConnectState.Idle)
                 dubboWindowPanel?.setPanelEnableState(true)
                 invokeLater { dubboWindowPanel?.resetToEmpty() }
             }
@@ -296,7 +292,7 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
     private fun connectError(registry: String) {
         val now = dubboWindowPanel?.getSelectedRegistry()
         if (registry == now) {
-            dubboWindowPanel?.updateConnectState(registry, ConnectState.Disconnect)
+            dubboWindowPanel?.updateConnectState(registry, ConnectState.Idle)
         }
         dubboWindowPanel?.setPanelEnableState(true)
     }
@@ -305,11 +301,8 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
         val dubboService = this.dubboService ?: return
         val ui = dubboWindowPanel ?: return
 
-        if (dubboService.isConnected(registry)) {
-            ui.updateConnectState(registry, ConnectState.Connected)
-        } else {
-            ui.updateConnectState(registry, ConnectState.Disconnect)
-        }
+        val state = dubboService.getConnectState(registry) ?: ConnectState.Idle
+        ui.updateConnectState(registry, state)
         updateAll()
     }
 
@@ -367,7 +360,7 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
         val registry = ui.getSelectedRegistry() ?: return@launch
 
         val client = dubboService?.getClient(registry)
-        if (client == null || !client.connected) {
+        if (client == null || !client.isConnected()) {
             return@launch
         }
         val urls = client.getUrls()
@@ -393,7 +386,8 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
         if (appName.isNullOrBlank()) {
             ui.updateInterfaceList(emptyList())
         } else {
-            ui.updateInterfaceList(infos.map { it.interfaceName }.toSortedSet())
+            ui.updateInterfaceList(infos.filter { it.appName == appName }
+                .map { it.interfaceName }.toSortedSet())
         }
     }
 
@@ -514,7 +508,7 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
         invokeLater {
             val now = dubboWindowPanel?.getSelectedRegistry()
             if (registry == now) {
-                dubboWindowPanel?.updateConnectState(registry, ConnectState.Disconnect)
+                dubboWindowPanel?.updateConnectState(registry, ConnectState.Idle)
             }
             dubboWindowPanel?.setPanelEnableState(true)
         }
@@ -528,12 +522,25 @@ class DubboWindowView : KLogger, DubboListener, Disposable {
         // 只要存在变化就移除缓存
         storage.removeByURL(registry, urls)
 
+        var updateUi = false
         if (state == URLState.ADD || state == URLState.UPDATE) {
             val infos = DubboUtils.getSimpleServiceInfo(registry, urls)
+            val selectedApplication = dubboWindowPanel?.getSelectedApplication()
+            //  区分出同一个application
+            if (selectedApplication.isNullOrBlank()) {
+                updateUi = true
+            } else {
+                for (info in infos) {
+                    if (info.appName == selectedApplication) {
+                        updateUi = true
+                        break
+                    }
+                }
+            }
             storage.addServices(infos)
         }
 
-        if (selectedRegistry == registry) {
+        if (updateUi && selectedRegistry == registry) {
             invokeLater {
                 val services = storage.getServices(registry) ?: emptyList()
                 updateApplication(services)

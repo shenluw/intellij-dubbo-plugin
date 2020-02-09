@@ -11,7 +11,7 @@ import java.io.Serializable
  */
 interface DubboClient {
 
-    var connected: Boolean
+    var connectState: ConnectState
 
     var listener: DubboListener?
 
@@ -21,11 +21,9 @@ interface DubboClient {
 
     var password: String?
 
-    fun connect()
+    fun connect(): Boolean
 
     fun disconnect()
-
-    fun refresh()
 
     fun getUrls(): List<URL>
 
@@ -38,6 +36,18 @@ interface DubboClient {
      */
     fun getServiceMethods(url: URL): List<MethodInfo>
 
+    fun isConnected(): Boolean {
+        return connectState == ConnectState.Connected
+    }
+
+    fun isConnecting(): Boolean {
+        return connectState == ConnectState.Connecting
+    }
+
+}
+
+enum class ConnectState {
+    Idle, Connected, Connecting, Error
 }
 
 /**
