@@ -14,9 +14,9 @@ import org.apache.dubbo.common.extension.ExtensionLoader
 import org.apache.dubbo.common.utils.NetUtils
 import org.apache.dubbo.config.ApplicationConfig
 import org.apache.dubbo.config.ReferenceConfig
-import org.apache.dubbo.config.builders.ApplicationBuilder
-import org.apache.dubbo.config.builders.ReferenceBuilder
-import org.apache.dubbo.config.builders.RegistryBuilder
+import org.apache.dubbo.config.bootstrap.builders.ApplicationBuilder
+import org.apache.dubbo.config.bootstrap.builders.ReferenceBuilder
+import org.apache.dubbo.config.bootstrap.builders.RegistryBuilder
 import org.apache.dubbo.registry.NotifyListener
 import org.apache.dubbo.registry.Registry
 import org.apache.dubbo.registry.RegistryFactory
